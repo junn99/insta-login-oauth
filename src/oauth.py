@@ -6,7 +6,7 @@ import hmac
 import json
 import secrets
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -121,7 +121,7 @@ def get_long_lived_token(short_lived_token: str) -> dict:
 
     # Calculate expiration (typically 60 days)
     expires_in = data.get("expires_in", 5184000)  # Default 60 days
-    data["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in)
+    data["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
     return data
 
@@ -139,7 +139,7 @@ def refresh_long_lived_token(token: str) -> dict:
     data = response.json()
 
     expires_in = data.get("expires_in", 5184000)
-    data["expires_at"] = datetime.utcnow() + timedelta(seconds=expires_in)
+    data["expires_at"] = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
 
     return data
 

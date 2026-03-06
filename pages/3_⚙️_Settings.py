@@ -1,7 +1,7 @@
 """Settings page for account management."""
 
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.database import (
     init_db,
@@ -50,7 +50,7 @@ with st.expander(f"@{selected_user.instagram_username}", expanded=True):
         user_token = get_user_token(selected_user_id, "user")
 
         if user_token and user_token.expires_at:
-            days_left = (user_token.expires_at - datetime.utcnow()).days
+            days_left = (user_token.expires_at - datetime.now(timezone.utc)).days
             if days_left > 14:
                 st.success(f"✅ 토큰 유효: {days_left}일 남음")
             elif days_left > 0:
@@ -87,7 +87,7 @@ st.subheader("⏰ 토큰 상태")
 
 user_token = get_user_token(selected_user_id, "user")
 if user_token and user_token.expires_at:
-    days_left = (user_token.expires_at - datetime.utcnow()).days
+    days_left = (user_token.expires_at - datetime.now(timezone.utc)).days
     if days_left <= 14:
         st.warning(f"⚠️ 토큰 만료 예정: {days_left}일 남음")
     else:

@@ -1,7 +1,5 @@
 """Insights collection logic."""
 
-from typing import Optional
-
 from .database import (
     get_all_users,
     get_user_token,
@@ -100,7 +98,7 @@ def collect_all_users() -> dict:
     }
 
     for user in users:
-        # Get page token for API calls
+        # Get user token for API calls
         token = get_user_token(user.id, "user")
         if not token:
             results["errors"].append(f"No user token for user {user.instagram_username}")

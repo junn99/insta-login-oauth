@@ -43,11 +43,13 @@ class RateLimiter:
 
             # Calculate wait time until oldest request expires
             wait_time = (self.requests[0] + self.window_seconds) - time.time()
-            if wait_time > 0:
-                time.sleep(wait_time + 0.1)  # Add small buffer
-                return wait_time
 
-            return 0.0
+        # Sleep outside the lock to avoid blocking other threads
+        if wait_time > 0:
+            time.sleep(wait_time + 0.1)
+            return wait_time
+
+        return 0.0
 
     def get_remaining_requests(self) -> int:
         """Get the number of requests remaining in current window."""

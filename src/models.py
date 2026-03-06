@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class User(BaseModel):
@@ -57,13 +57,6 @@ class CollectionLog(BaseModel):
     status: str  # 'success', 'error', 'rate_limited'
     error_message: Optional[str] = None
     collected_at: Optional[datetime] = None
-
-
-class OAuthState(BaseModel):
-    """OAuth state for CSRF protection."""
-
-    state: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class InstagramAccount(BaseModel):

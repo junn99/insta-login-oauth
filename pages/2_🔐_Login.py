@@ -30,6 +30,17 @@ if "code" in params:
         st.query_params.clear()
         st.stop()
 
+    if not validate_state(state):
+        st.error("세션이 유효하지 않거나 만료되었습니다. 다시 시도해 주세요. / Invalid or expired session.")
+        st.link_button(
+            "🔗 Instagram으로 다시 로그인",
+            get_oauth_url(),
+            type="primary",
+            use_container_width=True,
+        )
+        st.query_params.clear()
+        st.stop()
+
     with st.spinner("로그인 처리 중..."):
         try:
             result = complete_oauth_flow(code)
@@ -80,9 +91,6 @@ if "code" in params:
                     )
 
                 st.info("**대시보드**에서 인사이트를 확인하세요!")
-
-            else:
-                st.error(result["error"])
 
         except Exception as e:
             st.error(f"로그인 실패: {str(e)}")

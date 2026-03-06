@@ -1,11 +1,9 @@
 """Instagram Graph API client with retry logic."""
 
-import random
-import time
 from typing import Optional
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_random, retry_if_exception_type
 
 from .config import config
 from .rate_limiter import rate_limiter, RateLimitError
@@ -78,9 +76,8 @@ class InstagramAPI:
 
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=2, max=60),
+        wait=wait_exponential(multiplier=1, min=2, max=60) + wait_random(0, 1),
         retry=retry_if_exception_type((requests.RequestException, InstagramAPIError)),
-        before_sleep=lambda retry_state: time.sleep(random.uniform(0, 1)),  # Jitter
     )
     def _request_with_retry(self, endpoint: str, params: Optional[dict] = None) -> dict:
         """Make request with exponential backoff retry."""

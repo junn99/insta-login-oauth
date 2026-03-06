@@ -1,12 +1,12 @@
 """Database operations for Supabase."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from supabase import create_client, Client
 
 from .config import config
-from .models import User, Token, Insight, AudienceData, CollectionLog
+from .models import User, Token, Insight
 
 
 _client: Optional[Client] = None
@@ -130,7 +130,7 @@ def create_or_update_user(
     if existing:
         update_data = {
             "instagram_username": instagram_username,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         if facebook_page_id is not None:
             update_data["facebook_page_id"] = facebook_page_id
@@ -197,7 +197,7 @@ def get_user_token(user_id: int, token_type: str) -> Optional[Token]:
 def get_expiring_tokens(days: int = 7) -> list[tuple[User, Token]]:
     """Get tokens expiring within specified days."""
     client = get_client()
-    threshold = (datetime.utcnow() + timedelta(days=days)).isoformat()
+    threshold = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
 
     result = (
         client.table("tokens")

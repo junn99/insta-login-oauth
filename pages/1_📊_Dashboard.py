@@ -3,8 +3,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.database import (
     init_db,
@@ -46,7 +45,7 @@ date_range = st.sidebar.selectbox(
 
 days_map = {"최근 7일": 7, "최근 30일": 30, "최근 90일": 90}
 days = days_map[date_range]
-start_date = datetime.utcnow() - timedelta(days=days)
+start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
 # Manual refresh button
 st.sidebar.markdown("---")
