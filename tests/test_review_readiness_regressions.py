@@ -15,8 +15,8 @@ def _read_text(path: Path) -> str:
 
 
 def _reload_oauth_with_env(monkeypatch):
-    monkeypatch.setenv("FB_APP_ID", "test-app-id")
-    monkeypatch.setenv("FB_APP_SECRET", "test-app-secret")
+    monkeypatch.setenv("INSTAGRAM_APP_ID", "test-app-id")
+    monkeypatch.setenv("INSTAGRAM_APP_SECRET", "test-app-secret")
     monkeypatch.setenv("OAUTH_REDIRECT_URI", "https://example.com/oauth/callback")
     monkeypatch.setenv("CONTACT_EMAIL", "reviewer@example.com")
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
@@ -96,86 +96,51 @@ def test_oauth_url_contains_scopes_and_redirect_uri(monkeypatch):
     query = parse_qs(urlparse(oauth_url).query)
 
     required_scopes = {
-        "instagram_basic",
-        "instagram_manage_insights",
-        "pages_show_list",
-        "pages_read_engagement",
-        "business_management",
+        "instagram_business_basic",
+        "instagram_business_manage_insights",
     }
     actual_scopes = set(query["scope"][0].split(","))
 
     assert required_scopes.issubset(actual_scopes)
     assert query["redirect_uri"][0] == app_config.OAUTH_REDIRECT_URI
     assert query["redirect_uri"][0] == "https://example.com/oauth/callback"
+    assert oauth_url.startswith("https://api.instagram.com/oauth/authorize")
 
 
-def test_get_user_pages_business_manager_fallback(monkeypatch):
-    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
-    calls = []
-
-    def fake_get(url, params=None):
-        calls.append(url)
-        if url.endswith("/me/accounts"):
-            return _MockResponse(200, {"data": []})
-        if url.endswith("/me/businesses"):
-            return _MockResponse(200, {"data": [{"id": "biz-1"}]})
-        if url.endswith("/biz-1/owned_pages"):
-            return _MockResponse(
-                200,
-                {
-                    "data": [
-                        {
-                            "id": "page-1",
-                            "name": "Page 1",
-                            "access_token": "page-token-1",
-                            "instagram_business_account": {"id": "ig-1"},
-                        }
-                    ]
-                },
-            )
-        raise AssertionError(f"Unexpected URL: {url}")
-
-    monkeypatch.setattr(oauth_module.requests, "get", fake_get)
-
-    pages = oauth_module.get_user_pages("user-token")
-
-    assert len(pages) == 1
-    assert pages[0]["id"] == "page-1"
-    assert any(url.endswith("/me/businesses") for url in calls)
-    assert any(url.endswith("/biz-1/owned_pages") for url in calls)
-
-
-def test_get_user_pages_dedupes_bm_owned_pages(monkeypatch):
+def test_complete_oauth_flow_returns_user_id(monkeypatch):
     oauth_module, _ = _reload_oauth_with_env(monkeypatch)
 
-    def fake_get(url, params=None):
-        if url.endswith("/me/accounts"):
-            return _MockResponse(200, {"data": []})
-        if url.endswith("/me/businesses"):
-            return _MockResponse(200, {"data": [{"id": "biz-1"}, {"id": "biz-2"}]})
-        if url.endswith("/biz-1/owned_pages"):
-            return _MockResponse(
-                200,
-                {
-                    "data": [
-                        {"id": "page-1", "name": "Page 1", "access_token": "token-1"},
-                        {"id": "page-2", "name": "Page 2", "access_token": "token-2"},
-                    ]
-                },
-            )
-        if url.endswith("/biz-2/owned_pages"):
-            return _MockResponse(
-                200,
-                {
-                    "data": [
-                        {"id": "page-1", "name": "Page 1 Duplicate", "access_token": "token-1b"}
-                    ]
-                },
-            )
-        raise AssertionError(f"Unexpected URL: {url}")
+    # Mock exchange_code_for_token (POST to Instagram OAuth)
+    def fake_post(url, data=None):
+        return _MockResponse(200, {"access_token": "short-token", "user_id": 12345})
 
+    # Mock get requests (long-lived token exchange + account info)
+    def fake_get(url, params=None):
+        if "access_token" in url or "ig_exchange_token" in str(params):
+            return _MockResponse(200, {
+                "access_token": "long-lived-token",
+                "token_type": "bearer",
+                "expires_in": 5184000,
+            })
+        if "/me" in url:
+            return _MockResponse(200, {
+                "user_id": "12345",
+                "username": "testuser",
+                "name": "Test User",
+                "profile_picture_url": "https://example.com/pic.jpg",
+                "followers_count": 1000,
+                "media_count": 50,
+            })
+        raise AssertionError(f"Unexpected GET URL: {url}")
+
+    monkeypatch.setattr(oauth_module.requests, "post", fake_post)
     monkeypatch.setattr(oauth_module.requests, "get", fake_get)
 
-    pages = oauth_module.get_user_pages("user-token")
+    result = oauth_module.complete_oauth_flow("test-code")
 
-    assert [page["id"] for page in pages] == ["page-1", "page-2"]
+    assert result["success"] is True
+    assert result["user_token"] == "long-lived-token"
+    assert result["instagram_account"].id == "12345"
+    assert result["instagram_account"].username == "testuser"
+    assert "page_id" not in result
+    assert "page_token" not in result

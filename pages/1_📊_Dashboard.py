@@ -51,7 +51,7 @@ start_date = datetime.utcnow() - timedelta(days=days)
 # Manual refresh button
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 데이터 새로고침"):
-    token = get_user_token(selected_user_id, "page")
+    token = get_user_token(selected_user_id, "user")
     if token:
         with st.spinner("인사이트 수집 중..."):
             result = collect_insights_for_user(
@@ -77,7 +77,7 @@ audience = get_latest_audience_data(selected_user_id)
 
 # Auto-collect if no data exists (first login)
 if not insights and not latest:
-    token = get_user_token(selected_user_id, "page")
+    token = get_user_token(selected_user_id, "user")
     if token:
         with st.spinner("첫 로그인 데이터를 수집하고 있습니다..."):
             result = collect_insights_for_user(
@@ -105,7 +105,7 @@ if not insights and not latest:
 
 # Summary metrics
 st.subheader("📈 주요 지표")
-show_permission_badge("instagram_manage_insights")
+show_permission_badge("instagram_business_manage_insights")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -129,7 +129,7 @@ st.markdown("---")
 # Trends chart
 if insights:
     st.subheader("📊 시간별 추이")
-    show_permission_badge("instagram_manage_insights")
+    show_permission_badge("instagram_business_manage_insights")
 
     # Convert to DataFrame
     df = pd.DataFrame(
@@ -172,8 +172,7 @@ st.markdown("---")
 
 # Audience demographics
 st.subheader("👥 오디언스 인구통계")
-show_permission_badge("instagram_manage_insights")
-show_permission_badge("pages_read_engagement")
+show_permission_badge("instagram_business_manage_insights")
 
 if audience:
     col1, col2 = st.columns(2)
@@ -225,29 +224,14 @@ st.caption(
 
 permission_data = [
     {
-        "Permission": "instagram_basic",
+        "Permission": "instagram_business_basic",
         "Used In": "Profile Info, Account Setup",
-        "API Endpoint": "GET /{ig-user-id}?fields=id,username,...",
+        "API Endpoint": "GET /me?fields=user_id,username,... (graph.instagram.com)",
     },
     {
-        "Permission": "instagram_manage_insights",
-        "Used In": "Dashboard Metrics, Trends, Live Insights",
-        "API Endpoint": "GET /{ig-user-id}/insights",
-    },
-    {
-        "Permission": "pages_show_list",
-        "Used In": "Login (find linked Instagram account)",
-        "API Endpoint": "GET /me/accounts",
-    },
-    {
-        "Permission": "pages_read_engagement",
-        "Used In": "Audience Demographics",
-        "API Endpoint": "GET /{ig-user-id}/insights (audience metrics)",
-    },
-    {
-        "Permission": "business_management",
-        "Used In": "Login (Business Manager page discovery fallback)",
-        "API Endpoint": "GET /me/businesses, GET /{business-id}/owned_pages",
+        "Permission": "instagram_business_manage_insights",
+        "Used In": "Dashboard Metrics, Trends, Live Insights, Audience Demographics",
+        "API Endpoint": "GET /{ig-user-id}/insights (graph.instagram.com)",
     },
 ]
 st.dataframe(pd.DataFrame(permission_data), use_container_width=True, hide_index=True)

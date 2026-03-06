@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.database import init_db, get_expiring_tokens, save_token
-from src.oauth import get_user_pages, refresh_long_lived_token
+from src.oauth import refresh_long_lived_token
 
 
 def run_token_refresh(days_before_expiry: int = 7):
@@ -47,36 +47,6 @@ def run_token_refresh(days_before_expiry: int = 7):
             )
 
             print(f"  ✓ Token refreshed, expires: {new_token_data['expires_at']}")
-
-            # Refresh the page token for the same page currently linked to this user.
-            try:
-                pages = get_user_pages(new_token_data["access_token"])
-                matching_page = next(
-                    (
-                        page
-                        for page in pages
-                        if page.get("id") == user.facebook_page_id
-                        and isinstance(page.get("access_token"), str)
-                    ),
-                    None,
-                )
-
-                if matching_page and user.id is not None:
-                    save_token(
-                        user_id=user.id,
-                        token_type="page",
-                        access_token=matching_page["access_token"],
-                        expires_at=None,
-                    )
-                    print(f"  ✓ Page token synced for page {user.facebook_page_id}")
-                else:
-                    print(
-                        "  ! Page token sync skipped: "
-                        f"linked page {user.facebook_page_id} not found."
-                    )
-            except Exception as page_error:
-                print(f"  ! Page token sync failed: {page_error}")
-
             results["refreshed"] += 1
 
         except Exception as e:

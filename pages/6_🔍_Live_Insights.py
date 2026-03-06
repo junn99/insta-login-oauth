@@ -5,7 +5,6 @@ import pandas as pd
 
 from src.database import init_db, get_user_by_id, get_user_token
 from src.instagram_api import InstagramAPI, InstagramAPIError
-from src.oauth import get_user_pages
 from src.permission_badge import show_permission_badge
 
 st.set_page_config(page_title="Live Insights", page_icon="🔍", layout="wide")
@@ -32,18 +31,18 @@ if selected_user.id is None:
     st.stop()
 selected_user_id = selected_user.id
 
-page_token = get_user_token(selected_user_id, "page")
-if not page_token:
-    st.error("유효한 페이지 토큰이 없습니다. 다시 로그인해주세요.")
+user_token = get_user_token(selected_user_id, "user")
+if not user_token:
+    st.error("유효한 토큰이 없습니다. 다시 로그인해주세요.")
     st.stop()
 
-api = InstagramAPI(page_token.access_token, selected_user.instagram_id)
+api = InstagramAPI(user_token.access_token, selected_user.instagram_id)
 
 st.markdown("---")
 
-# Section 1: Profile Information (instagram_basic)
+# Section 1: Profile Information (instagram_business_basic)
 st.subheader("1. 프로필 정보 / Profile Information")
-show_permission_badge("instagram_basic")
+show_permission_badge("instagram_business_basic")
 try:
     info = api.get_account_info()
     col1, col2 = st.columns(2)
@@ -64,9 +63,9 @@ except InstagramAPIError as e:
 
 st.markdown("---")
 
-# Section 2: Business Insights (instagram_manage_insights)
+# Section 2: Business Insights (instagram_business_manage_insights)
 st.subheader("2. 비즈니스 인사이트 / Business Insights")
-show_permission_badge("instagram_manage_insights")
+show_permission_badge("instagram_business_manage_insights")
 try:
     insights = api.get_insights(period="day")
     if insights:
@@ -83,10 +82,9 @@ except InstagramAPIError as e:
 
 st.markdown("---")
 
-# Section 3: Audience Demographics (instagram_manage_insights + pages_read_engagement)
+# Section 3: Audience Demographics (instagram_business_manage_insights)
 st.subheader("3. 오디언스 인구통계 / Audience Demographics")
-show_permission_badge("instagram_manage_insights")
-show_permission_badge("pages_read_engagement")
+show_permission_badge("instagram_business_manage_insights")
 try:
     audience = api.get_audience_data()
     if audience:
@@ -97,45 +95,10 @@ try:
                 df = df.nlargest(10, "Count")
                 st.dataframe(df, use_container_width=True, hide_index=True)
     else:
-        st.info("현재 사용 가능한 오디언스 데이터가 없습니다.")
+        st.info("오디언스 인구통계 데이터는 팔로워 100명 이상일 때 제공됩니다. / Audience demographics require 100+ followers.")
     with st.expander("API Details"):
         st.code(
             f"GET /{selected_user.instagram_id}/insights?metric=follower_demographics&period=lifetime&metric_type=total_value"
         )
 except InstagramAPIError as e:
     st.error(f"API Error: {e}")
-
-st.markdown("---")
-
-# Section 4: Connected Facebook Pages (pages_show_list)
-st.subheader("4. 연결된 Facebook 페이지 / Connected Facebook Pages")
-show_permission_badge("pages_show_list")
-user_token = get_user_token(selected_user_id, "user")
-if user_token:
-    try:
-        pages = get_user_pages(user_token.access_token)
-        if pages:
-            page_data = []
-            for page in pages:
-                page_data.append(
-                    {
-                        "Page Name": page.get("name", "N/A"),
-                        "Page ID": page.get("id", "N/A"),
-                        "Has Instagram": "✅"
-                        if "instagram_business_account" in page
-                        else "❌",
-                    }
-                )
-            st.dataframe(
-                pd.DataFrame(page_data), use_container_width=True, hide_index=True
-            )
-        else:
-            st.info("연결된 Facebook 페이지가 없습니다.")
-        with st.expander("API Details"):
-            st.code(
-                "GET /me/accounts?fields=id,name,access_token,instagram_business_account"
-            )
-    except Exception as e:
-        st.error(f"API Error: {e}")
-else:
-    st.warning("유효한 사용자 토큰이 없습니다.")

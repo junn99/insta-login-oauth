@@ -101,9 +101,9 @@ def collect_all_users() -> dict:
 
     for user in users:
         # Get page token for API calls
-        token = get_user_token(user.id, "page")
+        token = get_user_token(user.id, "user")
         if not token:
-            results["errors"].append(f"No page token for user {user.instagram_username}")
+            results["errors"].append(f"No user token for user {user.instagram_username}")
             results["insights_failed"] += 1
             results["audience_failed"] += 1
             continue

@@ -9,34 +9,31 @@ st.title("🗑️ 데이터 삭제 안내 / Data Deletion Instructions")
 
 st.markdown("---")
 
-# Section 1: Remove App from Facebook
-st.subheader("1. Facebook에서 앱 제거 / Remove App from Facebook")
+# Section 1: Remove App from Instagram
+st.subheader("1. Instagram에서 앱 제거 / Remove App from Instagram")
 st.markdown("""
-다음 단계에 따라 Facebook 설정에서 본 앱의 접근 권한을 제거할 수 있습니다:
+다음 단계에 따라 Instagram 설정에서 본 앱의 접근 권한을 제거할 수 있습니다:
 
-Follow these steps to remove this app's access from your Facebook Settings:
+Follow these steps to remove this app's access from your Instagram Settings:
 
 **단계별 안내 / Step-by-step Instructions:**
 
-1. **Facebook에 로그인**합니다 / **Log in to Facebook**
-   - [facebook.com](https://www.facebook.com)으로 이동합니다
+1. **Instagram에 로그인**합니다 / **Log in to Instagram**
+   - [instagram.com](https://www.instagram.com)으로 이동합니다
 
 2. **설정 페이지로 이동**합니다 / **Go to Settings**
-   - 오른쪽 상단 프로필 아이콘 클릭 → **설정 및 개인정보** → **설정**
-   - Click your profile icon (top right) → **Settings & Privacy** → **Settings**
+   - 프로필 → 설정 및 활동 → 웹사이트 권한
+   - Profile → Settings and activity → Website permissions
 
 3. **앱 및 웹사이트 설정**으로 이동합니다 / **Navigate to Apps and Websites**
-   - 왼쪽 메뉴에서 **앱 및 웹사이트** 클릭
-   - Click **Apps and Websites** in the left menu
-   - 또는 직접 이동: [https://www.facebook.com/settings?tab=applications](https://www.facebook.com/settings?tab=applications)
+   - **앱 및 웹사이트** 클릭
+   - Click **Apps and Websites**
 
 4. **본 앱을 찾아 제거**합니다 / **Find and remove this app**
    - 활성 앱 목록에서 **urlinsta** (또는 본 앱 이름)를 찾습니다
    - Find **urlinsta** (or this app's name) in the Active apps list
    - **제거** 버튼을 클릭합니다 / Click the **Remove** button
-   - 확인 대화상자에서 **"이 앱이 게시한 모든 게시물, 사진, 동영상 삭제"** 체크 (선택사항)
-   - In the confirmation dialog, optionally check **"Delete all posts, photos and videos posted by this app"**
-   - **제거** 확인 / Confirm **Remove**
+   - 확인 대화상자에서 제거를 확인합니다 / Confirm removal in the dialog
 """)
 
 st.markdown("---")
@@ -66,7 +63,6 @@ The following data will be permanently deleted upon request:
 
 - **계정 정보** / Account information
   - 인스타그램 비즈니스 계정 ID, 사용자명, 표시 이름 / Instagram Business Account ID, username, display name
-  - 연결된 Facebook 페이지 ID / Connected Facebook Page ID
 
 - **저장된 인사이트 데이터** / Stored insights data
   - 노출, 도달, 프로필 조회, 팔로워 추이 등 모든 수집된 지표 / All collected metrics (impressions, reach, profile views, follower trends, etc.)
@@ -75,7 +71,7 @@ The following data will be permanently deleted upon request:
   - 도시, 국가, 연령, 성별 분포 데이터 / City, country, age, gender distribution data
 
 - **인증 토큰** / Authentication tokens
-  - 사용자 액세스 토큰 및 페이지 액세스 토큰 / User access token and page access token
+  - Instagram 액세스 토큰 / Instagram access token
 """)
 
 st.markdown("---")
@@ -83,7 +79,7 @@ st.markdown("---")
 # Section 4: Deletion Timeline
 st.subheader("4. 삭제 처리 기간 / Deletion Timeline")
 st.markdown("""
-- **Facebook 앱 제거 시:** 본 앱의 접근 권한이 **즉시** 중단됩니다
+- **Instagram 앱 제거 시:** 본 앱의 접근 권한이 **즉시** 중단됩니다
   / **Upon app removal:** This app's access is revoked **immediately**
 
 - **데이터 삭제 요청 시:** 요청일로부터 **30일 이내**에 모든 데이터가 영구 삭제됩니다

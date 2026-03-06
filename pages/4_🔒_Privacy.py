@@ -6,16 +6,16 @@ from src.config import config
 st.set_page_config(page_title="Privacy Policy", page_icon="🔒", layout="centered")
 
 st.title("🔒 개인정보 처리방침 / Privacy Policy")
-st.caption("최종 업데이트: 2026-02-11 / Last Updated: February 11, 2026")
+st.caption("최종 업데이트: 2026-03-06 / Last Updated: March 6, 2026")
 
 st.markdown("---")
 
 # Section 1: Data Collection
 st.subheader("1. 수집하는 데이터 / Data We Collect")
 st.markdown("""
-본 앱은 Facebook OAuth를 통해 인스타그램 비즈니스 계정에 연결할 때 다음 데이터를 수집합니다:
+본 앱은 Instagram OAuth를 통해 인스타그램 비즈니스 계정에 연결할 때 다음 데이터를 수집합니다:
 
-This app collects the following data when you connect your Instagram Business account via Facebook OAuth:
+This app collects the following data when you connect your Instagram Business account via Instagram OAuth:
 
 **계정 정보 / Account Information:**
 - 인스타그램 비즈니스 계정 ID / Instagram Business Account ID
@@ -24,7 +24,6 @@ This app collects the following data when you connect your Instagram Business ac
 - 프로필 사진 URL / Profile Picture URL
 - 팔로워 수 / Follower Count
 - 게시물 수 / Media Count
-- 연결된 Facebook 페이지 ID / Connected Facebook Page ID
 
 **비즈니스 인사이트 데이터 / Business Insights Data:**
 - 노출 수 (impressions) / Impressions
@@ -38,8 +37,7 @@ This app collects the following data when you connect your Instagram Business ac
 - 팔로워 연령 및 성별 분포 / Follower Age and Gender Distribution
 
 **인증 토큰 / Authentication Tokens:**
-- Facebook 사용자 액세스 토큰 (비공개 데이터베이스에 저장) / Facebook User Access Token (stored in a private database)
-- Facebook 페이지 액세스 토큰 (비공개 데이터베이스에 저장) / Facebook Page Access Token (stored in a private database)
+- Instagram 액세스 토큰 (비공개 데이터베이스에 저장) / Instagram Access Token (stored in a private database)
 """)
 
 st.markdown("---")
@@ -56,9 +54,9 @@ Collected data is used **solely for the following purposes**:
 - **오디언스 인구통계 시각화** / Visualizing audience demographic breakdowns
 - **토큰 관리 및 자동 갱신** / Managing and auto-refreshing authentication tokens
 
-본 앱은 사용자의 개인 Facebook 데이터, 개인 메시지, 개인 게시물 내용에 접근하지 않습니다.
+본 앱은 사용자의 개인 소셜 미디어 데이터, 개인 메시지, 개인 게시물 내용에 접근하지 않습니다.
 
-This app does NOT access your personal Facebook data, private messages, or personal post content.
+This app does NOT access your personal social media data, private messages, or personal post content.
 """)
 
 st.markdown("---")
@@ -95,7 +93,7 @@ st.markdown(f"""
 
 You can request deletion of your data:
 
-1. **Facebook 설정에서 앱 제거** / Remove the app from Facebook Settings
+1. **Instagram 설정에서 앱 제거** / Remove the app from Instagram Settings
    - 자세한 방법은 [데이터 삭제 안내 페이지](/Data_Deletion)를 참고하세요
    - See the [Data Deletion Instructions page](/Data_Deletion) for detailed steps
 2. **이메일로 삭제 요청** / Request deletion via email

@@ -121,33 +121,29 @@ def get_all_users() -> list[User]:
 
 
 def create_or_update_user(
-    instagram_id: str, instagram_username: str, facebook_page_id: str
+    instagram_id: str, instagram_username: str, facebook_page_id: Optional[str] = None
 ) -> User:
     """Create or update a user."""
     client = get_client()
     existing = get_user_by_instagram_id(instagram_id)
 
     if existing:
-        client.table("users").update(
-            {
-                "instagram_username": instagram_username,
-                "facebook_page_id": facebook_page_id,
-                "updated_at": datetime.utcnow().isoformat(),
-            }
-        ).eq("instagram_id", instagram_id).execute()
+        update_data = {
+            "instagram_username": instagram_username,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        if facebook_page_id is not None:
+            update_data["facebook_page_id"] = facebook_page_id
+        client.table("users").update(update_data).eq("instagram_id", instagram_id).execute()
         return get_user_by_instagram_id(instagram_id)
     else:
-        result = (
-            client.table("users")
-            .insert(
-                {
-                    "instagram_id": instagram_id,
-                    "instagram_username": instagram_username,
-                    "facebook_page_id": facebook_page_id,
-                }
-            )
-            .execute()
-        )
+        insert_data = {
+            "instagram_id": instagram_id,
+            "instagram_username": instagram_username,
+        }
+        if facebook_page_id is not None:
+            insert_data["facebook_page_id"] = facebook_page_id
+        client.table("users").insert(insert_data).execute()
         return get_user_by_instagram_id(instagram_id)
 
 

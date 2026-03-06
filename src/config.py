@@ -9,8 +9,8 @@ load_dotenv()
 class Config:
     """Application configuration from environment variables."""
 
-    FB_APP_ID: str = os.getenv("FB_APP_ID", "")
-    FB_APP_SECRET: str = os.getenv("FB_APP_SECRET", "")
+    INSTAGRAM_APP_ID: str = os.getenv("INSTAGRAM_APP_ID", "")
+    INSTAGRAM_APP_SECRET: str = os.getenv("INSTAGRAM_APP_SECRET", "")
     OAUTH_REDIRECT_URI: str = os.getenv("OAUTH_REDIRECT_URI", "")
     CONTACT_EMAIL: str = os.getenv("CONTACT_EMAIL", "")
 
@@ -18,9 +18,9 @@ class Config:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
-    # Facebook Graph API
-    GRAPH_API_VERSION: str = "v22.0"
-    GRAPH_API_BASE_URL: str = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
+    # Instagram API
+    INSTAGRAM_API_BASE_URL: str = "https://graph.instagram.com"
+    INSTAGRAM_OAUTH_URL: str = "https://api.instagram.com"
 
     # Rate limiting
     RATE_LIMIT_REQUESTS: int = 180  # Conservative limit (Instagram allows 200/hour)
@@ -30,8 +30,8 @@ class Config:
     def validate(cls) -> list[str]:
         """Validate required configuration. Returns list of missing keys."""
         required = [
-            "FB_APP_ID",
-            "FB_APP_SECRET",
+            "INSTAGRAM_APP_ID",
+            "INSTAGRAM_APP_SECRET",
             "OAUTH_REDIRECT_URI",
             "CONTACT_EMAIL",
             "SUPABASE_URL",

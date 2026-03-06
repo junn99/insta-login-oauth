@@ -2,25 +2,13 @@
 import streamlit as st
 
 PERMISSIONS = {
-    "instagram_basic": {
-        "label": "instagram_basic",
+    "instagram_business_basic": {
+        "label": "instagram_business_basic",
         "description": "Basic account info and profile data",
     },
-    "instagram_manage_insights": {
-        "label": "instagram_manage_insights",
-        "description": "Account insights and analytics metrics",
-    },
-    "pages_show_list": {
-        "label": "pages_show_list",
-        "description": "List of Facebook Pages managed by user",
-    },
-    "pages_read_engagement": {
-        "label": "pages_read_engagement",
-        "description": "Page engagement and audience data",
-    },
-    "business_management": {
-        "label": "business_management",
-        "description": "Business Manager owned page discovery fallback",
+    "instagram_business_manage_insights": {
+        "label": "instagram_business_manage_insights",
+        "description": "Account insights, analytics metrics, and audience demographics",
     },
 }
 

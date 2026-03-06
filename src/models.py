@@ -11,7 +11,7 @@ class User(BaseModel):
     id: Optional[int] = None
     instagram_id: str
     instagram_username: str
-    facebook_page_id: str
+    facebook_page_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -21,7 +21,7 @@ class Token(BaseModel):
 
     id: Optional[int] = None
     user_id: int
-    token_type: str  # 'user' or 'page'
+    token_type: str  # 'user'
     access_token: str
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None

@@ -6,7 +6,7 @@ CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     instagram_id TEXT UNIQUE NOT NULL,
     instagram_username TEXT NOT NULL,
-    facebook_page_id TEXT NOT NULL,
+    facebook_page_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

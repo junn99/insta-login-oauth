@@ -37,19 +37,17 @@ selected_user_id = selected_user.id
 st.subheader("📱 연결된 계정")
 
 with st.expander(f"@{selected_user.instagram_username}", expanded=True):
-    show_permission_badge("instagram_basic")
+    show_permission_badge("instagram_business_basic")
     col1, col2 = st.columns(2)
 
     with col1:
         st.write(f"**Instagram ID:** {selected_user.instagram_id}")
-        st.write(f"**Facebook 페이지 ID:** {selected_user.facebook_page_id}")
         st.write(
             f"**연결일:** {selected_user.created_at.strftime('%Y-%m-%d') if selected_user.created_at else 'N/A'}"
         )
 
     with col2:
         user_token = get_user_token(selected_user_id, "user")
-        page_token = get_user_token(selected_user_id, "page")
 
         if user_token and user_token.expires_at:
             days_left = (user_token.expires_at - datetime.utcnow()).days
@@ -61,11 +59,6 @@ with st.expander(f"@{selected_user.instagram_username}", expanded=True):
                 st.error("❌ 토큰 만료됨")
         else:
             st.info("토큰 상태 알 수 없음")
-
-        if page_token:
-            st.success("✅ 페이지 토큰 활성")
-        else:
-            st.error("❌ 페이지 토큰 없음")
 
     if st.button("🔄 토큰 갱신", key=f"refresh_{selected_user_id}"):
         if user_token:

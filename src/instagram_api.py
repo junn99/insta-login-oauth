@@ -48,7 +48,7 @@ class InstagramAPI:
     def __init__(self, access_token: str, instagram_id: str):
         self.access_token = access_token
         self.instagram_id = instagram_id
-        self.base_url = config.GRAPH_API_BASE_URL
+        self.base_url = config.INSTAGRAM_API_BASE_URL
 
     def _make_request(self, endpoint: str, params: Optional[dict] = None) -> dict:
         """Make an API request with rate limiting."""

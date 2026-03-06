@@ -22,7 +22,7 @@ if "code" in params:
     if not code:
         st.warning("인증 코드가 없습니다. 다시 시도해 주세요.")
         st.link_button(
-            "🔗 Facebook으로 다시 로그인",
+            "🔗 Instagram으로 다시 로그인",
             get_oauth_url(),
             type="primary",
             use_container_width=True,
@@ -41,23 +41,16 @@ if "code" in params:
                 user = create_or_update_user(
                     instagram_id=ig_account.id,
                     instagram_username=ig_account.username,
-                    facebook_page_id=result["page_id"],
                 )
                 if user.id is None:
                     raise ValueError("사용자 ID 생성에 실패했습니다.")
 
-                # Save tokens
+                # Save user token
                 save_token(
                     user_id=user.id,
                     token_type="user",
                     access_token=result["user_token"],
                     expires_at=result["user_token_expires"],
-                )
-                save_token(
-                    user_id=user.id,
-                    token_type="page",
-                    access_token=result["page_token"],
-                    expires_at=None,  # Page tokens don't expire while user token is valid
                 )
 
                 # Update session state
@@ -65,9 +58,8 @@ if "code" in params:
                 st.session_state.instagram_username = user.instagram_username
 
                 st.success(f"✅ @{ig_account.username} 로그인 성공!")
-                show_permission_badge("instagram_basic")
-                show_permission_badge("pages_show_list")
-                show_permission_badge("business_management")
+                show_permission_badge("instagram_business_basic")
+                show_permission_badge("instagram_business_manage_insights")
 
                 # Show account info
                 st.markdown("### 계정 정보")
@@ -91,10 +83,6 @@ if "code" in params:
 
             else:
                 st.error(result["error"])
-                # 임시 디버그 - 문제 파악 후 삭제
-                st.json(result.get("diagnostics", {}))
-                st.write(f"찾은 페이지 수: {result.get('pages_count', 0)}")
-                st.json(result.get("debug_pages", []))  # 이거 추가
 
         except Exception as e:
             st.error(f"로그인 실패: {str(e)}")
@@ -111,11 +99,8 @@ elif "error" in params:
         st.warning("권한 요청이 거부되었습니다.")
         st.markdown("""
         이 앱을 사용하려면 다음 권한이 필요합니다:
-        - **instagram_basic** - 계정 기본 정보
-        - **instagram_manage_insights** - 인사이트 데이터
-        - **pages_show_list** - Facebook 페이지 목록
-        - **pages_read_engagement** - 페이지 참여 데이터
-        - **business_management** - Business Manager 하위 페이지 조회(필요 시)
+        - **instagram_business_basic** - 계정 기본 정보
+        - **instagram_business_manage_insights** - 인사이트 데이터
 
         아래 버튼을 클릭하여 다시 시도하세요.
         """)
@@ -130,14 +115,12 @@ elif "error" in params:
 else:
     # Show login instructions
     st.markdown("""
-    ### 인스타그램 비즈니스 계정 연결
+    ### 인스타그램으로 로그인
 
     이 앱을 사용하려면 다음이 필요합니다:
     1. **인스타그램 비즈니스** 또는 **크리에이터** 계정
-    2. 인스타그램 계정에 연결된 **Facebook 페이지**
-    3. 페이지가 Business Manager 하위에 있으면 추가 권한 동의가 필요할 수 있음
 
-    아래 버튼을 클릭하여 Facebook으로 로그인하고 인스타그램 인사이트 접근을 허용하세요.
+    아래 버튼을 클릭하여 Instagram으로 로그인하고 인스타그램 인사이트 접근을 허용하세요.
     """)
 
     # Check config
@@ -151,7 +134,7 @@ else:
 
     oauth_url = get_oauth_url()
     st.link_button(
-        "🔗 Facebook으로 인스타그램 연결",
+        "🔗 Instagram으로 로그인",
         oauth_url,
         type="primary",
         use_container_width=True,
@@ -162,5 +145,5 @@ else:
     # Privacy note
     st.caption("""
     **개인정보 안내:** 이 앱은 인스타그램 비즈니스 인사이트와 기본 계정 정보만 접근합니다.
-    개인 Facebook 데이터, 메시지, 게시물 내용에는 접근하지 않습니다.
+    개인 소셜 미디어 데이터, 메시지, 게시물 내용에는 접근하지 않습니다.
     """)

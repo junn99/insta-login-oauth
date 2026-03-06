@@ -77,7 +77,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("### 1️⃣ 로그인")
-    st.write("Facebook OAuth를 통해 인스타그램 비즈니스 계정을 연결하세요.")
+    st.write("Instagram으로 비즈니스 계정을 연결하세요.")
 
 with col2:
     st.markdown("### 2️⃣ 대시보드")
