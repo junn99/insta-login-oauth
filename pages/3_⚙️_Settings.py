@@ -7,9 +7,9 @@ from src.database import (
     init_db,
     get_user_by_id,
     get_user_token,
+    save_token,
 )
 from src.oauth import refresh_long_lived_token
-from src.database import save_token
 from src.permission_badge import show_permission_badge
 
 st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
@@ -75,8 +75,8 @@ with st.expander(f"@{selected_user.instagram_username}", expanded=True):
                     f"토큰 갱신 완료! 새 만료일: {new_token['expires_at'].strftime('%Y-%m-%d')}"
                 )
                 st.rerun()
-            except Exception as e:
-                st.error(f"갱신 실패: {str(e)}")
+            except Exception:
+                st.error("토큰 갱신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
         else:
             st.error("갱신할 토큰이 없습니다. 다시 로그인해주세요.")
 
@@ -103,8 +103,8 @@ st.markdown("""
 **인스타그램 인사이트 대시보드**
 
 이 앱은 인스타그램 비즈니스 계정의 인사이트를 수집하고 표시합니다:
-- 참여 지표 (노출, 도달, 프로필 조회)
-- 팔로워 추이
+- 참여 지표 (조회수, 도달, 참여 계정, 총 상호작용)
+- 좋아요, 댓글, 공유, 저장 등
 - 오디언스 인구통계
 
 **데이터 수집:**

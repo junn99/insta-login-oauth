@@ -3,7 +3,7 @@
 from typing import Optional
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential, wait_random, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, wait_random, retry_if_exception
 
 from .config import config
 from .rate_limiter import rate_limiter, RateLimitError
@@ -18,14 +18,27 @@ class InstagramAPIError(Exception):
         self.subcode = subcode
 
 
+def _is_retryable(exception: BaseException) -> bool:
+    """Only retry on transient errors, not permanent client errors (400, 403, etc.)."""
+    if isinstance(exception, requests.RequestException):
+        return True
+    if isinstance(exception, InstagramAPIError):
+        # Retry on rate-limit, server errors, and known transient API error codes
+        return exception.code in (None, 1, 2, 4, 17, 32, 341) or (
+            exception.code is not None and exception.code >= 500
+        )
+    return False
+
+
 class InstagramAPI:
     """Instagram Graph API client."""
 
     # Available insight metrics for Instagram Business accounts
+    # Updated per Graph API v22 changelog — removed deprecated:
+    #   impressions (use views), profile_views, follower_count
     INSIGHT_METRICS = [
-        "impressions",
+        "views",
         "reach",
-        "profile_views",
         "accounts_engaged",
         "total_interactions",
         "likes",
@@ -34,7 +47,8 @@ class InstagramAPI:
         "saves",
         "replies",
         "follows_and_unfollows",
-        "follower_count",
+        "reposts",
+        "profile_links_taps",
     ]
 
     AUDIENCE_METRICS = [
@@ -65,7 +79,10 @@ class InstagramAPI:
 
         # Handle API errors
         if response.status_code != 200:
-            error_data = response.json().get("error", {})
+            try:
+                error_data = response.json().get("error", {})
+            except (ValueError, KeyError):
+                error_data = {}
             raise InstagramAPIError(
                 error_data.get("message", "Unknown error"),
                 error_data.get("code"),
@@ -77,7 +94,7 @@ class InstagramAPI:
     @retry(
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=2, max=60) + wait_random(0, 1),
-        retry=retry_if_exception_type((requests.RequestException, InstagramAPIError)),
+        retry=retry_if_exception(_is_retryable),
     )
     def _request_with_retry(self, endpoint: str, params: Optional[dict] = None) -> dict:
         """Make request with exponential backoff retry."""
@@ -96,7 +113,7 @@ class InstagramAPI:
         """
         if metrics is None:
             # Use a subset of commonly available metrics
-            metrics = ["impressions", "reach", "profile_views", "follower_count"]
+            metrics = ["views", "reach", "accounts_engaged", "total_interactions"]
 
         # Filter to valid metrics only
         valid_metrics = [m for m in metrics if m in self.INSIGHT_METRICS]

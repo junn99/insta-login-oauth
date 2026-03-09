@@ -285,6 +285,7 @@ def get_latest_insights(user_id: int) -> dict[str, Insight]:
         .select("*")
         .eq("user_id", user_id)
         .order("collected_at", desc=True)
+        .limit(200)
         .execute()
     )
 

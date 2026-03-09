@@ -46,16 +46,17 @@ def start_background_scheduler():
     st.session_state.scheduler_started = True
 
 
-# Start scheduler (only in production)
-if config.SUPABASE_URL:
+# Check configuration before starting scheduler
+missing = config.validate()
+
+# Start scheduler only if fully configured
+if not missing and config.SUPABASE_URL:
     start_background_scheduler()
 
 
 # Main page content
 st.title("📊 인스타그램 인사이트 대시보드")
 
-# Check configuration
-missing = config.validate()
 if missing:
     st.error(f"⚠️ 설정 누락: {', '.join(missing)}")
     st.info("필수 환경 변수를 설정해주세요.")

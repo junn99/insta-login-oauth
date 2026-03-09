@@ -19,8 +19,9 @@ class Config:
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
     # Instagram API
-    INSTAGRAM_API_BASE_URL: str = "https://graph.instagram.com"
-    INSTAGRAM_OAUTH_URL: str = "https://api.instagram.com"
+    INSTAGRAM_API_BASE_URL: str = "https://graph.instagram.com/v22.0"
+    INSTAGRAM_AUTH_URL: str = "https://www.instagram.com"       # authorize redirect
+    INSTAGRAM_TOKEN_URL: str = "https://api.instagram.com"      # token exchange POST
 
     # Rate limiting
     RATE_LIMIT_REQUESTS: int = 180  # Conservative limit (Instagram allows 200/hour)
