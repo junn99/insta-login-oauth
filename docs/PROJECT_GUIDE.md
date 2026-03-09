@@ -54,7 +54,7 @@
 | Login | `pages/2_🔐_Login.py` | Instagram OAuth 로그인 |
 | Settings | `pages/3_⚙️_Settings.py` | 계정 관리, 토큰 갱신 |
 | Privacy | `pages/4_🔒_Privacy.py` | 개인정보 처리방침 (Meta 필수) |
-| Data Deletion | `pages/5_🗑️_Data_Deletion.py` | 데이터 삭제 안내 (Meta 필수) |
+| Data Deletion | `pages/5_🗑️_Data-Deletion.py` | 데이터 삭제 안내 (Meta 필수) |
 | Live Insights | `pages/6_🔍_Live_Insights.py` | 실시간 API 호출 데모 (심사용) |
 
 ### 1.4 요청하는 Instagram 권한 2개
@@ -138,7 +138,7 @@ DELETE FROM tokens WHERE token_type = 'page';
 | 항목 | 값 |
 |------|----|
 | **Privacy Policy URL** | `https://insta-app.streamlit.app/Privacy` |
-| **Data Deletion Instructions URL** | `https://insta-app.streamlit.app/Data_Deletion` |
+| **Data Deletion Instructions URL** | `https://insta-app.streamlit.app/Data-Deletion` |
 | **앱 도메인** | `insta-app.streamlit.app` |
 
 #### 3.5 App Review 제출
@@ -185,7 +185,7 @@ insta-login-oauth/
 │   ├── 2_🔐_Login.py              # OAuth 로그인
 │   ├── 3_⚙️_Settings.py           # 계정/토큰 관리
 │   ├── 4_🔒_Privacy.py            # 개인정보 처리방침
-│   ├── 5_🗑️_Data_Deletion.py     # 데이터 삭제 안내
+│   ├── 5_🗑️_Data-Deletion.py     # 데이터 삭제 안내
 │   └── 6_🔍_Live_Insights.py      # 실시간 API 데모
 ├── jobs/
 │   ├── collect_insights.py         # 정기 인사이트 수집 job

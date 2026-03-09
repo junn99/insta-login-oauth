@@ -37,7 +37,7 @@ Use this as a reviewer-reproducible pre-submit check.
 
 ## Data Deletion Instructions URL
 
-- [ ] Set **Data Deletion Instructions URL** to: `https://insta-app.streamlit.app/Data_Deletion`
+- [ ] Set **Data Deletion Instructions URL** to: `https://insta-app.streamlit.app/Data-Deletion`
 - [ ] URL is publicly accessible **without login**.
 
 ## API 활동 요건
@@ -58,7 +58,7 @@ Use this as a reviewer-reproducible pre-submit check.
 - [ ] 로그아웃 상태에서 시작
 - [ ] `instagram_business_basic` → `/Login` (OAuth grant) and `/Live_Insights` profile/basic account section.
 - [ ] `instagram_business_manage_insights` → `/Dashboard` metrics/charts/audience and `/Live_Insights` business insights + audience demographics sections.
-- [ ] Keep one continuous 2-3 minute recording showing login, permission grant, each mapped section, then `/Privacy` and `/Data_Deletion`.
+- [ ] Keep one continuous 2-3 minute recording showing login, permission grant, each mapped section, then `/Privacy` and `/Data-Deletion`.
 - [ ] 브라우저 주소창(URL 경로)이 항상 보임
 - [ ] App Secret, 비밀번호, API 키가 화면에 노출되지 않음
 - [ ] Note: Audience demographics require 100+ followers. Include this in the submission notes if the test account has fewer followers.

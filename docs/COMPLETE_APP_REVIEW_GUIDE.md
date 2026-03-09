@@ -41,7 +41,7 @@
 
 - **Streamlit Cloud 배포 완료** — 배포 URL 확보 (예: `https://insta-app.streamlit.app`)
 - 아래 라우트가 모두 접근 가능해야 함:
-  - `/Login`, `/Dashboard`, `/Live_Insights`, `/Privacy`, `/Data_Deletion`
+  - `/Login`, `/Dashboard`, `/Live_Insights`, `/Privacy`, `/Data-Deletion`
 
 ### 환경변수
 
@@ -153,7 +153,7 @@ Development 모드에서는 **앱 역할(App Role)이 부여된 사용자만** O
 ### 4.4 Data Deletion Request URL
 
 - **경로**: App Dashboard → **Instagram** → **Business login settings** → `Data deletion request URL`
-- **값**: `https://insta-app.streamlit.app/Data_Deletion`
+- **값**: `https://insta-app.streamlit.app/Data-Deletion`
 - **반드시 로그인 없이 공개 접근** 가능해야 함
 
 ### 설정 확인 팁
@@ -176,7 +176,7 @@ Development 모드에서는 앱 역할이 있는 사용자만 OAuth가 가능합
 | 2 | `/Dashboard` | 인사이트 수집 시작 → 지표/차트/오디언스 섹션 표시 |
 | 3 | `/Live_Insights` | 프로필/인사이트/오디언스 3개 섹션 모두 실시간 데이터 표시 |
 | 4 | `/Privacy` | 로그인 없이 접근 가능 (시크릿 모드에서 확인) |
-| 5 | `/Data_Deletion` | 로그인 없이 접근 가능 (시크릿 모드에서 확인) |
+| 5 | `/Data-Deletion` | 로그인 없이 접근 가능 (시크릿 모드에서 확인) |
 
 ### 문제 발생 시
 
@@ -317,7 +317,7 @@ for each metric type. Without this permission, our core analytics dashboard
 #### 2:00 - 2:20 — 정책 URL 증빙
 
 1. `/Privacy` 이동 (로그인 없이 접근 가능함을 강조)
-2. `/Data_Deletion` 이동 (로그인 없이 접근 가능함을 강조)
+2. `/Data-Deletion` 이동 (로그인 없이 접근 가능함을 강조)
 
 ---
 
@@ -393,7 +393,7 @@ App URLs:
 - Dashboard: https://insta-app.streamlit.app/Dashboard
 - Live Insights: https://insta-app.streamlit.app/Live_Insights
 - Privacy Policy: https://insta-app.streamlit.app/Privacy
-- Data Deletion: https://insta-app.streamlit.app/Data_Deletion
+- Data Deletion: https://insta-app.streamlit.app/Data-Deletion
 ```
 
 #### Step 6: Submit
@@ -438,7 +438,7 @@ Thank you for your feedback. We have addressed the reported issues.
 
 1) Public policy URLs (accessible without login)
 - Privacy Policy: https://insta-app.streamlit.app/Privacy
-- Data Deletion Instructions: https://insta-app.streamlit.app/Data_Deletion
+- Data Deletion Instructions: https://insta-app.streamlit.app/Data-Deletion
 
 2) OAuth reproduction flow
 1. Open https://insta-app.streamlit.app/Login
@@ -507,7 +507,7 @@ Best regards,
 
 - 사용자가 데이터 삭제를 요청하면 **합리적인 시간 내에 처리**
 - Meta가 삭제 요청 처리 여부를 확인할 수 있음
-- `/Data_Deletion` 페이지가 항상 접근 가능해야 함
+- `/Data-Deletion` 페이지가 항상 접근 가능해야 함
 
 ---
 
@@ -521,7 +521,7 @@ Best regards,
 | Dashboard | `/Dashboard` | 인사이트 대시보드 |
 | Live Insights | `/Live_Insights` | 실시간 API 데모 |
 | Privacy | `/Privacy` | 개인정보 처리방침 |
-| Data Deletion | `/Data_Deletion` | 데이터 삭제 안내 |
+| Data Deletion | `/Data-Deletion` | 데이터 삭제 안내 |
 | Settings | `/Settings` | 계정/토큰 관리 |
 
 ### Meta 콘솔 경로

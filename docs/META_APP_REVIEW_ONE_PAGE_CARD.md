@@ -38,7 +38,7 @@
 
 ### Instagram → Business login settings
 - [ ] `Valid OAuth Redirect URIs`에 `https://insta-app.streamlit.app/Login`
-- [ ] `Data Deletion Request URL` = `https://insta-app.streamlit.app/Data_Deletion`
+- [ ] `Data Deletion Request URL` = `https://insta-app.streamlit.app/Data-Deletion`
 
 ---
 
@@ -55,7 +55,7 @@
 1. `/Login` 접속 → Instagram 로그인/권한 승인
 2. `/Dashboard`에서 지표/차트/오디언스 섹션 표시
 3. `/Live_Insights`에서 프로필/인사이트/오디언스 섹션 표시
-4. `/Privacy`, `/Data_Deletion` 공개 접근 확인
+4. `/Privacy`, `/Data-Deletion` 공개 접근 확인
 
 필수 권한 매핑:
 - `instagram_business_basic` → `/Login`, `/Live_Insights`
@@ -74,7 +74,7 @@
 ## 7) 즉시 중단해야 하는 Fail 신호
 
 - `redirect_uri mismatch`
-- `/Privacy` 또는 `/Data_Deletion` 로그인 요구/에러
+- `/Privacy` 또는 `/Data-Deletion` 로그인 요구/에러
 - `/Login`에서 state 검증 반복 실패
 - 권한 사용 근거 화면이 영상에 안 잡힘
 - 30일 이내 API 호출 기록 없음

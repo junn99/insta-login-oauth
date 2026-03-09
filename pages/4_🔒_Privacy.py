@@ -95,8 +95,8 @@ st.markdown(f"""
 You can request deletion of your data:
 
 1. **Instagram 설정에서 앱 제거** / Remove the app from Instagram Settings
-   - 자세한 방법은 [데이터 삭제 안내 페이지](/Data_Deletion)를 참고하세요
-   - See the [Data Deletion Instructions page](/Data_Deletion) for detailed steps
+   - 자세한 방법은 [데이터 삭제 안내 페이지](/Data-Deletion)를 참고하세요
+   - See the [Data Deletion Instructions page](/Data-Deletion) for detailed steps
 2. **이메일로 삭제 요청** / Request deletion via email
    - {config.CONTACT_EMAIL} 로 삭제 요청을 보내주세요
    - Send a deletion request to {config.CONTACT_EMAIL}

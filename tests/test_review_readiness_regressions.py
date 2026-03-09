@@ -7,7 +7,7 @@ from requests import HTTPError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PRIVACY_PAGE = PROJECT_ROOT / "pages" / "4_🔒_Privacy.py"
-DELETION_PAGE = PROJECT_ROOT / "pages" / "5_🗑️_Data_Deletion.py"
+DELETION_PAGE = PROJECT_ROOT / "pages" / "5_🗑️_Data-Deletion.py"
 
 
 def _read_text(path: Path) -> str:
