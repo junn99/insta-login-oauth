@@ -70,7 +70,7 @@
 
 | 단계 | URL | 메서드 |
 |------|-----|--------|
-| 인증 | `https://api.instagram.com/oauth/authorize` | GET (redirect) |
+| 인증 | `https://www.instagram.com/oauth/authorize` | GET (redirect) |
 | 토큰 교환 | `https://api.instagram.com/oauth/access_token` | POST |
 | Long-lived 토큰 | `https://graph.instagram.com/access_token` | GET |
 | 토큰 갱신 | `https://graph.instagram.com/refresh_access_token` | GET |
@@ -192,8 +192,8 @@ insta-login-oauth/
 │   └── refresh_tokens.py           # 정기 토큰 갱신 job
 └── docs/
     ├── PROJECT_GUIDE.md            # 이 문서
+    ├── COMPLETE_APP_REVIEW_GUIDE.md # 심사 전체 워크스루 (13섹션)
     ├── APP_REVIEW_CHECKLIST.md     # 심사 체크리스트
-    ├── META_APP_REVIEW_NEXT_STEPS.md  # 운영자 런북
     └── META_APP_REVIEW_ONE_PAGE_CARD.md  # 1장 요약
 ```
 

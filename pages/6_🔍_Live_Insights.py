@@ -75,7 +75,7 @@ try:
         st.info("현재 사용 가능한 인사이트 데이터가 없습니다.")
     with st.expander("API Details"):
         st.code(
-            f"GET /{selected_user.instagram_id}/insights?metric=impressions,reach,profile_views,follower_count&period=day&metric_type=total_value"
+            f"GET /{selected_user.instagram_id}/insights?metric=views,reach,accounts_engaged,total_interactions&period=day&metric_type=total_value"
         )
 except InstagramAPIError as e:
     st.error(f"API Error: {e}")
@@ -98,7 +98,7 @@ try:
         st.info("오디언스 인구통계 데이터는 팔로워 100명 이상일 때 제공됩니다. / Audience demographics require 100+ followers.")
     with st.expander("API Details"):
         st.code(
-            f"GET /{selected_user.instagram_id}/insights?metric=follower_demographics&period=lifetime&metric_type=total_value"
+            f"GET /{selected_user.instagram_id}/insights?metric=engaged_audience_demographics,reached_audience_demographics,follower_demographics&period=lifetime&metric_type=total_value"
         )
 except InstagramAPIError as e:
     st.error(f"API Error: {e}")

@@ -2097,7 +2097,7 @@ wheels = [
 [[package]]
 name = "urlinsta"
 version = "1.0.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },
     { name = "pandas" },

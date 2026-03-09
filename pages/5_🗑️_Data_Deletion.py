@@ -65,7 +65,7 @@ The following data will be permanently deleted upon request:
   - 인스타그램 비즈니스 계정 ID, 사용자명, 표시 이름 / Instagram Business Account ID, username, display name
 
 - **저장된 인사이트 데이터** / Stored insights data
-  - 노출, 도달, 프로필 조회, 팔로워 추이 등 모든 수집된 지표 / All collected metrics (impressions, reach, profile views, follower trends, etc.)
+  - 조회수, 도달, 참여 계정, 총 상호작용 등 모든 수집된 지표 / All collected metrics (views, reach, accounts engaged, total interactions, etc.)
 
 - **오디언스 인구통계 데이터** / Audience demographic data
   - 도시, 국가, 연령, 성별 분포 데이터 / City, country, age, gender distribution data

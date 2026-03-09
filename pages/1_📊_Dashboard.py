@@ -108,20 +108,20 @@ show_permission_badge("instagram_business_manage_insights")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    value = latest.get("follower_count", None)
-    st.metric("팔로워", f"{int(value.metric_value):,}" if value else "N/A")
+    value = latest.get("views", None)
+    st.metric("조회수", f"{int(value.metric_value):,}" if value else "N/A")
 
 with col2:
-    value = latest.get("impressions", None)
-    st.metric("노출", f"{int(value.metric_value):,}" if value else "N/A")
-
-with col3:
     value = latest.get("reach", None)
     st.metric("도달", f"{int(value.metric_value):,}" if value else "N/A")
 
+with col3:
+    value = latest.get("accounts_engaged", None)
+    st.metric("참여 계정", f"{int(value.metric_value):,}" if value else "N/A")
+
 with col4:
-    value = latest.get("profile_views", None)
-    st.metric("프로필 조회", f"{int(value.metric_value):,}" if value else "N/A")
+    value = latest.get("total_interactions", None)
+    st.metric("총 상호작용", f"{int(value.metric_value):,}" if value else "N/A")
 
 st.markdown("---")
 

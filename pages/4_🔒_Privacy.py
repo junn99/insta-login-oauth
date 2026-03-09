@@ -26,10 +26,11 @@ This app collects the following data when you connect your Instagram Business ac
 - 게시물 수 / Media Count
 
 **비즈니스 인사이트 데이터 / Business Insights Data:**
-- 노출 수 (impressions) / Impressions
+- 조회수 (views) / Views
 - 도달 수 (reach) / Reach
-- 프로필 조회 수 (profile views) / Profile Views
-- 팔로워 증감 추이 / Follower Count Trends
+- 참여 계정 수 (accounts engaged) / Accounts Engaged
+- 총 상호작용 (total interactions) / Total Interactions
+- 좋아요, 댓글, 공유, 저장 등 / Likes, Comments, Shares, Saves, etc.
 
 **오디언스 인구통계 / Audience Demographics:**
 - 팔로워 도시 분포 / Follower City Distribution

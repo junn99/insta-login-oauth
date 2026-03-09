@@ -104,15 +104,16 @@ def test_oauth_url_contains_scopes_and_redirect_uri(monkeypatch):
     assert required_scopes.issubset(actual_scopes)
     assert query["redirect_uri"][0] == app_config.OAUTH_REDIRECT_URI
     assert query["redirect_uri"][0] == "https://example.com/oauth/callback"
-    assert oauth_url.startswith("https://api.instagram.com/oauth/authorize")
+    assert oauth_url.startswith("https://www.instagram.com/oauth/authorize")
 
 
 def test_complete_oauth_flow_returns_user_id(monkeypatch):
     oauth_module, _ = _reload_oauth_with_env(monkeypatch)
 
     # Mock exchange_code_for_token (POST to Instagram OAuth)
+    # Business Login returns {"data": [...]} format per official docs
     def fake_post(url, data=None):
-        return _MockResponse(200, {"access_token": "short-token", "user_id": 12345})
+        return _MockResponse(200, {"data": [{"access_token": "short-token", "user_id": 12345, "permissions": "instagram_business_basic,instagram_business_manage_insights"}]})
 
     # Mock get requests (long-lived token exchange + account info)
     def fake_get(url, params=None):
@@ -123,14 +124,15 @@ def test_complete_oauth_flow_returns_user_id(monkeypatch):
                 "expires_in": 5184000,
             })
         if "/me" in url:
-            return _MockResponse(200, {
+            # /me may also return {"data": [...]} per Get Started guide
+            return _MockResponse(200, {"data": [{
                 "user_id": "12345",
                 "username": "testuser",
                 "name": "Test User",
                 "profile_picture_url": "https://example.com/pic.jpg",
                 "followers_count": 1000,
                 "media_count": 50,
-            })
+            }]})
         raise AssertionError(f"Unexpected GET URL: {url}")
 
     monkeypatch.setattr(oauth_module.requests, "post", fake_post)

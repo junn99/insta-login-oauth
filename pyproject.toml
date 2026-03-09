@@ -22,6 +22,9 @@ refresh-tokens = "jobs.refresh_tokens:run_token_refresh"
 [tool.poetry]
 package-mode = false
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.uv]
 dev-dependencies = [
     "pytest>=7.4.0",

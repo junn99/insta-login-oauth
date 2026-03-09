@@ -87,12 +87,12 @@ def get_oauth_url(state: Optional[str] = None) -> str:
         "scope": "instagram_business_basic,instagram_business_manage_insights",
         "response_type": "code",
     }
-    return f"{config.INSTAGRAM_OAUTH_URL}/oauth/authorize?{urlencode(params)}"
+    return f"{config.INSTAGRAM_AUTH_URL}/oauth/authorize?{urlencode(params)}"
 
 
 def exchange_code_for_token(code: str) -> dict:
     """Exchange authorization code for short-lived access token."""
-    url = f"{config.INSTAGRAM_OAUTH_URL}/oauth/access_token"
+    url = f"{config.INSTAGRAM_TOKEN_URL}/oauth/access_token"
     data = {
         "client_id": config.INSTAGRAM_APP_ID,
         "client_secret": config.INSTAGRAM_APP_SECRET,
@@ -144,10 +144,18 @@ def refresh_long_lived_token(token: str) -> dict:
     return data
 
 
+def _unwrap_data(response: dict) -> dict:
+    """Unwrap Instagram API responses that use {"data": [...]} format."""
+    if "data" in response and isinstance(response["data"], list) and response["data"]:
+        return response["data"][0]
+    return response
+
+
 def complete_oauth_flow(code: str) -> dict:
     """Complete the full OAuth flow and return all necessary data."""
     # Step 1: Exchange code for short-lived token + user_id
-    token_data = exchange_code_for_token(code)
+    token_response = exchange_code_for_token(code)
+    token_data = _unwrap_data(token_response)
     short_token = token_data["access_token"]
     user_id = str(token_data["user_id"])
 
@@ -164,7 +172,7 @@ def complete_oauth_flow(code: str) -> dict:
     }
     response = requests.get(info_url, params=params)
     response.raise_for_status()
-    info = response.json()
+    info = _unwrap_data(response.json())
 
     ig_account = InstagramAccount(
         id=user_id,
