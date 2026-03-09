@@ -20,24 +20,24 @@ Use this as a reviewer-reproducible pre-submit check.
 ## App Domains
 
 - [ ] In Meta App Dashboard → Settings → Basic, set `App Domains` to include:
-  - [ ] `[YOUR-DOMAIN].streamlit.app`
+  - [ ] `insta-app.streamlit.app`
   - [ ] (Optional) `localhost` for local testing
 
 ## Valid OAuth Redirect URIs
 
 - [ ] In Meta App Dashboard → Instagram → API setup with Instagram login → `Valid OAuth Redirect URIs`, add exact Streamlit callback URLs:
-  - [ ] `https://[YOUR-DOMAIN].streamlit.app/Login`
+  - [ ] `https://insta-app.streamlit.app/Login`
   - [ ] `http://localhost:8501/Login` (local test, if used)
 - [ ] Ensure app env `OAUTH_REDIRECT_URI` matches one registered URI exactly (including `/Login`, scheme, and host).
 
 ## Privacy Policy URL
 
-- [ ] Set **Privacy Policy URL** to: `https://[YOUR-DOMAIN].streamlit.app/Privacy`
+- [ ] Set **Privacy Policy URL** to: `https://insta-app.streamlit.app/Privacy`
 - [ ] URL is publicly accessible **without login**.
 
 ## Data Deletion Instructions URL
 
-- [ ] Set **Data Deletion Instructions URL** to: `https://[YOUR-DOMAIN].streamlit.app/Data_Deletion`
+- [ ] Set **Data Deletion Instructions URL** to: `https://insta-app.streamlit.app/Data_Deletion`
 - [ ] URL is publicly accessible **without login**.
 
 ## API 활동 요건

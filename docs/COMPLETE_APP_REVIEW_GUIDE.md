@@ -39,7 +39,7 @@
 
 ### 배포
 
-- **Streamlit Cloud 배포 완료** — 배포 URL 확보 (예: `https://[YOUR-DOMAIN].streamlit.app`)
+- **Streamlit Cloud 배포 완료** — 배포 URL 확보 (예: `https://insta-app.streamlit.app`)
 - 아래 라우트가 모두 접근 가능해야 함:
   - `/Login`, `/Dashboard`, `/Live_Insights`, `/Privacy`, `/Data_Deletion`
 
@@ -50,7 +50,7 @@
 ```bash
 INSTAGRAM_APP_ID=...
 INSTAGRAM_APP_SECRET=...
-OAUTH_REDIRECT_URI=https://[YOUR-DOMAIN].streamlit.app/Login
+OAUTH_REDIRECT_URI=https://insta-app.streamlit.app/Login
 CONTACT_EMAIL=...
 SUPABASE_URL=...
 SUPABASE_KEY=...
@@ -134,26 +134,26 @@ Development 모드에서는 **앱 역할(App Role)이 부여된 사용자만** O
 ### 4.1 App Domains
 
 - **경로**: App Dashboard → **Settings** → **Basic** → `App Domains`
-- **값**: `[YOUR-DOMAIN].streamlit.app`
+- **값**: `insta-app.streamlit.app`
 - 로컬 테스트 시 `localhost` 추가 가능 (제출 전 제거 권장)
 
 ### 4.2 Valid OAuth Redirect URIs
 
 - **경로**: App Dashboard → **Instagram** → **API setup with Instagram login** → **Business login settings**
-- **값**: `https://[YOUR-DOMAIN].streamlit.app/Login`
+- **값**: `https://insta-app.streamlit.app/Login`
 - `OAUTH_REDIRECT_URI` 환경변수와 **완전히 동일**해야 함 (스킴, 호스트, 경로, 대소문자 모두)
 - 로컬 테스트용: `http://localhost:8501/Login` (제출 전 제거 권장)
 
 ### 4.3 Privacy Policy URL
 
 - **경로**: App Dashboard → **Settings** → **Basic** → `Privacy Policy URL`
-- **값**: `https://[YOUR-DOMAIN].streamlit.app/Privacy`
+- **값**: `https://insta-app.streamlit.app/Privacy`
 - **반드시 로그인 없이 공개 접근** 가능해야 함
 
 ### 4.4 Data Deletion Request URL
 
 - **경로**: App Dashboard → **Instagram** → **Business login settings** → `Data deletion request URL`
-- **값**: `https://[YOUR-DOMAIN].streamlit.app/Data_Deletion`
+- **값**: `https://insta-app.streamlit.app/Data_Deletion`
 - **반드시 로그인 없이 공개 접근** 가능해야 함
 
 ### 설정 확인 팁
@@ -389,11 +389,11 @@ Test account details:
   normally.
 
 App URLs:
-- Login: https://[YOUR-DOMAIN].streamlit.app/Login
-- Dashboard: https://[YOUR-DOMAIN].streamlit.app/Dashboard
-- Live Insights: https://[YOUR-DOMAIN].streamlit.app/Live_Insights
-- Privacy Policy: https://[YOUR-DOMAIN].streamlit.app/Privacy
-- Data Deletion: https://[YOUR-DOMAIN].streamlit.app/Data_Deletion
+- Login: https://insta-app.streamlit.app/Login
+- Dashboard: https://insta-app.streamlit.app/Dashboard
+- Live Insights: https://insta-app.streamlit.app/Live_Insights
+- Privacy Policy: https://insta-app.streamlit.app/Privacy
+- Data Deletion: https://insta-app.streamlit.app/Data_Deletion
 ```
 
 #### Step 6: Submit
@@ -437,11 +437,11 @@ Hello Meta App Review Team,
 Thank you for your feedback. We have addressed the reported issues.
 
 1) Public policy URLs (accessible without login)
-- Privacy Policy: https://[YOUR-DOMAIN].streamlit.app/Privacy
-- Data Deletion Instructions: https://[YOUR-DOMAIN].streamlit.app/Data_Deletion
+- Privacy Policy: https://insta-app.streamlit.app/Privacy
+- Data Deletion Instructions: https://insta-app.streamlit.app/Data_Deletion
 
 2) OAuth reproduction flow
-1. Open https://[YOUR-DOMAIN].streamlit.app/Login
+1. Open https://insta-app.streamlit.app/Login
 2. Click the Instagram login button and grant the requested permissions.
 3. After redirect back to /Login, the connected Instagram Business account
    details are shown.

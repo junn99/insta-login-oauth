@@ -93,14 +93,14 @@ INSTAGRAM_APP_ID=실제_앱_ID
 INSTAGRAM_APP_SECRET=실제_앱_시크릿
 
 # OAuth Redirect URI (Streamlit Cloud URL + /Login)
-OAUTH_REDIRECT_URI=https://your-app.streamlit.app/Login
+OAUTH_REDIRECT_URI=https://insta-app.streamlit.app/Login
 
 # Contact Email
 CONTACT_EMAIL=your_contact_email
 
-# Supabase (supabase.com 대시보드에서 확인)
+# Supabase (supabase.com 대시보드 → Settings → API)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_anon_key
+SUPABASE_KEY=your_secret_key
 ```
 
 **Streamlit Cloud 사용 시:** Settings → Secrets에 같은 값 입력
@@ -137,9 +137,9 @@ DELETE FROM tokens WHERE token_type = 'page';
 
 | 항목 | 값 |
 |------|----|
-| **Privacy Policy URL** | `https://your-app.streamlit.app/Privacy` |
-| **Data Deletion Instructions URL** | `https://your-app.streamlit.app/Data_Deletion` |
-| **앱 도메인** | `your-app.streamlit.app` |
+| **Privacy Policy URL** | `https://insta-app.streamlit.app/Privacy` |
+| **Data Deletion Instructions URL** | `https://insta-app.streamlit.app/Data_Deletion` |
+| **앱 도메인** | `insta-app.streamlit.app` |
 
 #### 3.5 App Review 제출
 

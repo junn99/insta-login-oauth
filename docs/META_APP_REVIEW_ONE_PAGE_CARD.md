@@ -23,8 +23,8 @@
 
 ## 2) 5분 사전 점검
 
-- [ ] 배포 URL 확인: `https://[YOUR-DOMAIN].streamlit.app`
-- [ ] `OAUTH_REDIRECT_URI`가 `https://[YOUR-DOMAIN].streamlit.app/Login`와 완전 일치
+- [ ] 배포 URL 확인: `https://insta-app.streamlit.app`
+- [ ] `OAUTH_REDIRECT_URI`가 `https://insta-app.streamlit.app/Login`와 완전 일치
 - [ ] `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` 설정 완료
 - [ ] `CONTACT_EMAIL` 실제 메일로 설정
 
@@ -33,12 +33,12 @@
 ## 3) Meta 콘솔 필수값
 
 ### Settings → Basic
-- [ ] `App Domains`에 `[YOUR-DOMAIN].streamlit.app`
-- [ ] `Privacy Policy URL` = `https://[YOUR-DOMAIN].streamlit.app/Privacy`
+- [ ] `App Domains`에 `insta-app.streamlit.app`
+- [ ] `Privacy Policy URL` = `https://insta-app.streamlit.app/Privacy`
 
 ### Instagram → Business login settings
-- [ ] `Valid OAuth Redirect URIs`에 `https://[YOUR-DOMAIN].streamlit.app/Login`
-- [ ] `Data Deletion Request URL` = `https://[YOUR-DOMAIN].streamlit.app/Data_Deletion`
+- [ ] `Valid OAuth Redirect URIs`에 `https://insta-app.streamlit.app/Login`
+- [ ] `Data Deletion Request URL` = `https://insta-app.streamlit.app/Data_Deletion`
 
 ---
 
