@@ -34,11 +34,13 @@
 
 ### Settings → Basic
 - [ ] `App Domains`에 `insta-app.streamlit.app`
-- [ ] `Privacy Policy URL` = `https://insta-app.streamlit.app/Privacy`
+- [ ] `Privacy Policy URL` = **Google Docs 웹 게시 링크** (예: `https://docs.google.com/document/d/e/.../pub`)
+  - ⚠️ Streamlit URL은 SPA라 Meta 크롤러가 404로 인식 → Google Docs 사용 필수
 
 ### Instagram → Business login settings
 - [ ] `Valid OAuth Redirect URIs`에 `https://insta-app.streamlit.app/Login`
-- [ ] `Data Deletion Request URL` = `https://insta-app.streamlit.app/Data-Deletion`
+- [ ] `Data Deletion Request URL` = **Google Docs 웹 게시 링크** (예: `https://docs.google.com/document/d/e/.../pub`)
+  - ⚠️ Privacy Policy와 동일한 SPA 크롤러 이슈 → Google Docs 사용 필수
 
 ---
 
@@ -75,6 +77,7 @@
 
 - `redirect_uri mismatch`
 - `/Privacy` 또는 `/Data-Deletion` 로그인 요구/에러
+- **Meta 크롤러 404** — Live 모드 전환 시 "올바른 개인정보처리방침 URL" 에러 → Privacy Policy URL이 Google Docs 링크인지 확인 (Streamlit SPA는 크롤러 404)
 - `/Login`에서 state 검증 반복 실패
 - 권한 사용 근거 화면이 영상에 안 잡힘
 - 30일 이내 API 호출 기록 없음

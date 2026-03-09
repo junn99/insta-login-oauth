@@ -137,9 +137,11 @@ DELETE FROM tokens WHERE token_type = 'page';
 
 | 항목 | 값 |
 |------|----|
-| **Privacy Policy URL** | `https://insta-app.streamlit.app/Privacy` |
-| **Data Deletion Instructions URL** | `https://insta-app.streamlit.app/Data-Deletion` |
+| **Privacy Policy URL** | **Google Docs 웹 게시 링크** (예: `https://docs.google.com/document/d/e/.../pub`) |
+| **Data Deletion Instructions URL** | **Google Docs 웹 게시 링크** (예: `https://docs.google.com/document/d/e/.../pub`) |
 | **앱 도메인** | `insta-app.streamlit.app` |
+
+> ⚠️ **Privacy Policy URL에 Streamlit URL을 직접 사용하면 안 됩니다.** Streamlit은 SPA(JavaScript 렌더링)라서 Meta 크롤러가 JS를 실행하지 못해 404로 인식합니다. Google Docs에 개인정보 처리방침을 작성하고 **웹에 게시**하여 정적 HTML URL을 사용하세요. Meta 공유 디버거(`developers.facebook.com/tools/debug/`)에서 응답 코드 200을 확인하세요.
 
 #### 3.5 App Review 제출
 
@@ -160,6 +162,7 @@ DELETE FROM tokens WHERE token_type = 'page';
 | Instagram 화면에서 에러 | `OAUTH_REDIRECT_URI` 불일치 | Meta 콘솔의 "Valid OAuth Redirect URIs"에 정확한 URL 등록 |
 | 인사이트 데이터 없음 | 비즈니스 계정 활동 부족 | 게시물 올리고 하루 뒤 재시도 |
 | 오디언스 데이터 없음 | 팔로워 100명 미만 | 팔로워 100명 이상 필요 |
+| **Live 모드 전환 시 "올바른 개인정보처리방침 URL" 에러** | Streamlit SPA를 Meta 크롤러가 JS 실행 못해 404 인식 | Privacy Policy URL을 **Google Docs 웹 게시 링크**로 변경, Meta 공유 디버거에서 200 확인 |
 
 ---
 

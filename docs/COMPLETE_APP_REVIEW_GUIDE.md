@@ -147,14 +147,18 @@ Development 모드에서는 **앱 역할(App Role)이 부여된 사용자만** O
 ### 4.3 Privacy Policy URL
 
 - **경로**: App Dashboard → **Settings** → **Basic** → `Privacy Policy URL`
-- **값**: `https://insta-app.streamlit.app/Privacy`
-- **반드시 로그인 없이 공개 접근** 가능해야 함
+- **값**: **Google Docs 웹 게시 링크** 사용 (예: `https://docs.google.com/document/d/e/.../pub`)
+- ⚠️ **Streamlit URL을 직접 등록하면 안 됩니다** — Streamlit은 SPA(JavaScript 렌더링)라서 Meta 크롤러가 JS를 실행하지 못해 페이지를 404로 인식합니다
+- Streamlit `/Privacy` 페이지는 **사용자용으로 그대로 유지**하되, Meta 콘솔에는 Google Docs 링크를 등록하세요
+- **검증**: Meta 공유 디버거(`developers.facebook.com/tools/debug/`)에서 등록한 URL의 응답 코드가 **200**인지 확인
 
 ### 4.4 Data Deletion Request URL
 
 - **경로**: App Dashboard → **Instagram** → **Business login settings** → `Data deletion request URL`
-- **값**: `https://insta-app.streamlit.app/Data-Deletion`
-- **반드시 로그인 없이 공개 접근** 가능해야 함
+- **값**: **Google Docs 웹 게시 링크** 사용 (예: `https://docs.google.com/document/d/e/.../pub`)
+- ⚠️ Privacy Policy URL과 동일한 이유로 Streamlit URL 대신 Google Docs 링크를 사용합니다 (SPA 크롤러 이슈)
+- Streamlit `/Data-Deletion` 페이지는 **사용자용으로 그대로 유지**
+- **검증**: Meta 공유 디버거(`developers.facebook.com/tools/debug/`)에서 응답 코드 **200** 확인
 
 ### 설정 확인 팁
 
@@ -334,9 +338,23 @@ Development 모드에서는 앱 역할이 부여된 사용자만 OAuth 인증이
 ### 전환 전 확인 사항
 
 - [ ] Business Verification 완료 (Advanced Access 필요 시)
-- [ ] Privacy Policy URL 설정 완료
-- [ ] Data Deletion Request URL 설정 완료
+- [ ] Privacy Policy URL 설정 완료 (**Google Docs 웹 게시 링크** — 섹션 4.3 참조)
+- [ ] Data Deletion Request URL 설정 완료 (**Google Docs 웹 게시 링크** — 섹션 4.4 참조)
 - [ ] 모든 기능이 Dev 모드에서 정상 동작 확인 완료
+
+### ⚠️ SPA 크롤러 이슈 & Google Docs 워크어라운드
+
+Live 모드 전환 시 **"올바른 개인정보처리방침 URL을 입력해야 합니다"** 에러가 발생할 수 있습니다.
+
+**원인**: Streamlit은 SPA(Single Page Application)로 JavaScript로 페이지를 렌더링합니다. Meta 크롤러는 JS를 실행하지 못하므로 Streamlit URL을 크롤링하면 빈 페이지(404)로 인식합니다.
+
+**해결**: Privacy Policy를 **Google Docs에서 웹 게시**하여 정적 HTML URL을 생성하고, 이 URL을 Meta 콘솔에 등록합니다.
+
+1. Google Docs에 개인정보 처리방침 문서 작성
+2. **파일** → **웹에 게시** → **게시** 클릭
+3. 생성된 URL (예: `https://docs.google.com/document/d/e/.../pub`)을 Meta 콘솔에 등록
+4. **Meta 공유 디버거**(`developers.facebook.com/tools/debug/`)에서 응답 코드 **200** 확인
+5. Streamlit `/Privacy` 페이지는 사용자용으로 그대로 유지
 
 ### 주의사항
 
@@ -392,8 +410,8 @@ App URLs:
 - Login: https://insta-app.streamlit.app/Login
 - Dashboard: https://insta-app.streamlit.app/Dashboard
 - Live Insights: https://insta-app.streamlit.app/Live_Insights
-- Privacy Policy: https://insta-app.streamlit.app/Privacy
-- Data Deletion: https://insta-app.streamlit.app/Data-Deletion
+- Privacy Policy: [Google Docs 웹 게시 URL 또는 https://insta-app.streamlit.app/Privacy]
+- Data Deletion: [Google Docs 웹 게시 URL 또는 https://insta-app.streamlit.app/Data-Deletion]
 ```
 
 #### Step 6: Submit
@@ -424,6 +442,7 @@ App URLs:
 | `invalid state` / state 검증 실패 | 리다이렉트 과정에서 state 유실 | 시크릿 모드에서 단일 탭으로 재시도 |
 | 오디언스 데이터 없음 | 팔로워 100명 미만 | 팔로워 100명 이상 계정 사용, 제출 노트에 설명 |
 | 인사이트 데이터 없음 | 신규 계정/활동 부족 | 게시물 올리고 하루 뒤 재시도 |
+| **Meta 크롤러 404 / "올바른 개인정보처리방침 URL" 에러** | Streamlit SPA를 Meta 크롤러가 JS 실행 못해 404 인식 | Privacy Policy URL을 **Google Docs 웹 게시 링크**로 변경 → Meta 공유 디버거에서 200 확인 |
 
 ---
 
@@ -437,8 +456,10 @@ Hello Meta App Review Team,
 Thank you for your feedback. We have addressed the reported issues.
 
 1) Public policy URLs (accessible without login)
-- Privacy Policy: https://insta-app.streamlit.app/Privacy
-- Data Deletion Instructions: https://insta-app.streamlit.app/Data-Deletion
+- Privacy Policy: [Google Docs 웹 게시 URL] (Meta 콘솔 등록용)
+  - User-facing page: https://insta-app.streamlit.app/Privacy
+- Data Deletion Instructions: [Google Docs 웹 게시 URL] (Meta 콘솔 등록용)
+  - User-facing page: https://insta-app.streamlit.app/Data-Deletion
 
 2) OAuth reproduction flow
 1. Open https://insta-app.streamlit.app/Login
@@ -480,9 +501,11 @@ Best regards,
 
 ### Privacy Policy 유지
 
-- 개인정보 처리방침 URL이 항상 접근 가능한 상태를 유지
+- **Google Docs 웹 게시 URL**이 항상 접근 가능한 상태를 유지 (Meta 콘솔에 등록된 URL)
+- Google Docs 문서 수정 시 웹 게시 버전에 자동 반영됨 (별도 재게시 불필요)
+- Streamlit `/Privacy` 페이지도 함께 업데이트하여 사용자용 내용 일치시키기
 - 앱 기능 변경 시 처리방침 내용도 업데이트
-- Meta가 정기적으로 URL 접근성을 확인함
+- Meta가 정기적으로 URL 접근성을 확인함 — Google Docs URL이므로 SPA 크롤러 이슈 없음
 
 ### API 사용량 모니터링
 
@@ -505,9 +528,11 @@ Best regards,
 
 ### Data Deletion 요청 처리
 
+- **Google Docs 웹 게시 URL** (Meta 콘솔에 등록된 URL)이 항상 접근 가능한 상태를 유지
+- Google Docs 문서 수정 시 웹 게시 버전에 자동 반영됨
+- Streamlit `/Data-Deletion` 페이지도 함께 업데이트하여 사용자용 내용 일치시키기
 - 사용자가 데이터 삭제를 요청하면 **합리적인 시간 내에 처리**
 - Meta가 삭제 요청 처리 여부를 확인할 수 있음
-- `/Data-Deletion` 페이지가 항상 접근 가능해야 함
 
 ---
 

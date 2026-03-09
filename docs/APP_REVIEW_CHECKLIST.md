@@ -32,13 +32,17 @@ Use this as a reviewer-reproducible pre-submit check.
 
 ## Privacy Policy URL
 
-- [ ] Set **Privacy Policy URL** to: `https://insta-app.streamlit.app/Privacy`
-- [ ] URL is publicly accessible **without login**.
+- [ ] Set **Privacy Policy URL** to: **Google Docs 웹 게시 링크** 사용 (예: `https://docs.google.com/document/d/e/.../pub`)
+  - ⚠️ Streamlit URL(`/Privacy`)은 SPA(JavaScript 렌더링)라 Meta 크롤러가 JS를 실행하지 못해 404로 인식합니다
+  - Streamlit `/Privacy` 페이지는 사용자용으로 유지하되, **Meta 콘솔 등록 URL은 Google Docs 링크**를 사용하세요
+- [ ] **Meta 공유 디버거**(`developers.facebook.com/tools/debug/`)에서 해당 URL의 응답 코드가 **200**인지 확인
 
 ## Data Deletion Instructions URL
 
-- [ ] Set **Data Deletion Instructions URL** to: `https://insta-app.streamlit.app/Data-Deletion`
-- [ ] URL is publicly accessible **without login**.
+- [ ] Set **Data Deletion Instructions URL** to: **Google Docs 웹 게시 링크** 사용 (예: `https://docs.google.com/document/d/e/.../pub`)
+  - ⚠️ Streamlit URL(`/Data-Deletion`)도 SPA라 Meta 크롤러가 404로 인식합니다
+  - Streamlit `/Data-Deletion` 페이지는 사용자용으로 유지하되, **Meta 콘솔 등록 URL은 Google Docs 링크**를 사용하세요
+- [ ] **Meta 공유 디버거**(`developers.facebook.com/tools/debug/`)에서 해당 URL의 응답 코드가 **200**인지 확인
 
 ## API 활동 요건
 
@@ -66,6 +70,7 @@ Use this as a reviewer-reproducible pre-submit check.
 ## Live 모드 전환
 
 - [ ] Live 모드 전환 완료 (App Dashboard → Settings → Basic → App Mode → Switch to Live)
+  - ⚠️ "올바른 개인정보처리방침 URL" 에러 발생 시: Privacy Policy URL이 Google Docs 웹 게시 링크인지 확인 (Streamlit SPA URL은 Meta 크롤러가 404로 인식)
 - [ ] 전환 후 일반 사용자(심사관)가 OAuth 접근 가능한지 확인
 
 ## 최종 제출
