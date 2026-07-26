@@ -6,16 +6,22 @@ from src.database import init_db, create_or_update_user, save_token
 from src.oauth import get_oauth_url, validate_state, complete_oauth_flow
 from src.permission_badge import show_permission_badge
 from src.config import config
+from src.ui.celeblife_login import render_login_page
 
-st.set_page_config(page_title="Login", page_icon="🔐", layout="centered")
+st.set_page_config(
+    page_title="Login",
+    page_icon="🔐",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 init_db()
-
-st.title("🔐 인스타그램 로그인")
 
 # Check for OAuth callback
 params = st.query_params
 
 if "code" in params:
+    st.title("🔐 인스타그램 로그인")
+
     code = params.get("code") or ""
     state = params.get("state") or ""
 
@@ -99,6 +105,8 @@ if "code" in params:
     st.query_params.clear()
 
 elif "error" in params:
+    st.title("🔐 인스타그램 로그인")
+
     error = params.get("error")
     error_reason = params.get("error_reason", "")
     error_desc = params.get("error_description", "알 수 없는 오류")
@@ -121,37 +129,10 @@ elif "error" in params:
     st.query_params.clear()
 
 else:
-    # Show login instructions
-    st.markdown("""
-    ### 인스타그램으로 로그인
-
-    이 앱을 사용하려면 다음이 필요합니다:
-    1. **인스타그램 비즈니스** 또는 **크리에이터** 계정
-
-    아래 버튼을 클릭하여 Instagram으로 로그인하고 인스타그램 인사이트 접근을 허용하세요.
-    """)
-
     # Check config
     missing = config.validate()
     if missing:
         st.error(f"⚠️ 앱이 설정되지 않았습니다. 누락: {', '.join(missing)}")
         st.stop()
 
-    # Login button
-    st.markdown("---")
-
-    oauth_url = get_oauth_url()
-    st.link_button(
-        "🔗 Instagram으로 로그인",
-        oauth_url,
-        type="primary",
-        use_container_width=True,
-    )
-
-    st.markdown("---")
-
-    # Privacy note
-    st.caption("""
-    **개인정보 안내:** 이 앱은 인스타그램 비즈니스 인사이트와 기본 계정 정보만 접근합니다.
-    개인 소셜 미디어 데이터, 메시지, 게시물 내용에는 접근하지 않습니다.
-    """)
+    render_login_page(oauth_url=get_oauth_url(), back_url="/", privacy_url="/Privacy")
