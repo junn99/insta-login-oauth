@@ -468,8 +468,8 @@ def render_login_page(
               <a
                 class="cl-instagram-button"
                 href="{safe_oauth_url}"
-                target="_self"
-                rel="noopener"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <svg
                   class="cl-instagram-icon"

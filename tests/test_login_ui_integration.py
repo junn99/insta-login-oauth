@@ -118,6 +118,8 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert "cl-login-page" in html
     assert "인스타그램으로 계속하기" in html
     assert "href=\"https://instagram.example/oauth?next=/Login&amp;state=a&quot;b&amp;scope=x&lt;y&gt;\"" in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
     assert 'href="/"' in html
     assert 'href="/Privacy"' in html
 
