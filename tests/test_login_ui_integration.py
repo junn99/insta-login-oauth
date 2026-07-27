@@ -92,7 +92,7 @@ def _link_buttons(app):
 def test_login_assets_exist_and_are_non_empty():
     expected_assets = [
         ASSET_DIR / "celeblife_logo_purple.png",
-        ASSET_DIR / "celeblife_instagram_illustration.png",
+        ASSET_DIR / "celeblife_symbol_purple.png",
     ]
 
     for asset in expected_assets:
@@ -111,17 +111,63 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert app.markdown[0].value.startswith("<style>")
     assert "\n\n" not in app.markdown[0].value
     assert "\n        <main" not in app.markdown[0].value
-    assert "@media (max-width: 1080px)" in html
-    assert ".cl-visual-panel {\nmin-height: 780px;\n}" in html
-    assert "@media (max-width: 620px)" in html
-    assert ".cl-visual-panel {\nmin-height: 570px;\n}" in html
+    # Mobile-first cascade: the phone layout is the unconditional base and
+    # desktop is layered on with min-width. Guard against a regression back to
+    # the old desktop-first structure.
+    assert "@media (min-width: 421px)" in html
+    assert "@media (min-width: 961px)" in html
+    assert "@media (max-height: 720px) and (max-width: 960px)" in html
+    # Landscape phones are too short for the connect graphic + pinned footer;
+    # without this rule the CTA falls ~100px below the fold at 844x390.
+    assert "@media (max-height: 500px) and (max-width: 960px)" in html
+    assert "@media (max-width: 1080px)" not in html
+    assert "@media (max-width: 620px)" not in html
+    # The desktop story panel must be off by default, not merely overridden.
+    assert ".cl-visual-panel {\ndisplay: none;\n}" in html
+    assert "env(safe-area-inset-bottom)" in html
+    assert "@media (hover: hover)" in html
+    assert "Pretendard" in html
+    # Meta partner-status wording is not permitted; only the login-method claim.
+    assert "Meta 공식 로그인 방식" in html
+    assert "공식파트너" not in html
     assert "cl-login-page" in html
-    assert "인스타그램으로 계속하기" in html
+    assert "Instagram으로 계속하기" in html
     assert "href=\"https://instagram.example/oauth?next=/Login&amp;state=a&quot;b&amp;scope=x&lt;y&gt;\"" in html
     assert 'target="_blank"' in html
     assert 'rel="noopener noreferrer"' in html
     assert 'href="/"' in html
     assert 'href="/Privacy"' in html
+
+
+def test_login_styles_outrank_streamlit_theme(login_patches):
+    """Streamlit themes markdown h1-h6/a via ".st-emotion-cache-xxxx h1", which
+    beats a bare single-class selector -- including font-family "Source Sans",
+    which has no Korean glyphs and renders the headline as tofu boxes. Component
+    rules must stay scoped under .cl-login-page so they win on specificity.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    # The brand font must be forced across the subtree, not merely inherited.
+    assert 'font-family: "Pretendard Variable"' in html
+    assert "sans-serif !important;" in html
+
+    # Streamlit's heading padding and link underline must be neutralised.
+    assert "text-decoration: none !important;" in html
+
+    # Text rules that collide with Streamlit's element selectors must carry the
+    # two-class scope. A bare ".cl-form-title {" would silently lose again.
+    for scoped in (
+        ".cl-login-page .cl-form-title {",
+        ".cl-login-page .cl-lead {",
+        ".cl-login-page .cl-instagram-button {",
+        ".cl-login-page .cl-trust-copy {",
+    ):
+        assert scoped in html, f"unscoped selector regressed: {scoped}"
+
+    assert "\n.cl-form-title {" not in html
+    assert "\n.cl-instagram-button {" not in html
 
 
 def test_success_callback_preserves_token_save_session_and_clears_query(login_patches, monkeypatch):
