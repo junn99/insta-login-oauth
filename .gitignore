@@ -41,6 +41,13 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Build artifacts
+*.egg-info/
+
+# Designer handoff kit (Next.js reference source; design already ported to
+# src/ui/celeblife_login.py -- kept locally, not tracked)
+celeblife_instagram_onboarding_ui/
+
 # Streamlit
 .streamlit/secrets.toml
 

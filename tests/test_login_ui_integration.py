@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -92,7 +93,7 @@ def _link_buttons(app):
 def test_login_assets_exist_and_are_non_empty():
     expected_assets = [
         ASSET_DIR / "celeblife_logo_purple.png",
-        ASSET_DIR / "celeblife_instagram_illustration.png",
+        ASSET_DIR / "celeblife_symbol_purple.png",
     ]
 
     for asset in expected_assets:
@@ -111,17 +112,130 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert app.markdown[0].value.startswith("<style>")
     assert "\n\n" not in app.markdown[0].value
     assert "\n        <main" not in app.markdown[0].value
-    assert "@media (max-width: 1080px)" in html
-    assert ".cl-visual-panel {\nmin-height: 780px;\n}" in html
-    assert "@media (max-width: 620px)" in html
-    assert ".cl-visual-panel {\nmin-height: 570px;\n}" in html
+    # Mobile-first cascade: the phone layout is the unconditional base and
+    # desktop is layered on with min-width. Guard against a regression back to
+    # the old desktop-first structure.
+    assert "@media (min-width: 421px)" in html
+    assert "@media (min-width: 961px)" in html
+    assert "@media (max-height: 720px) and (max-width: 960.98px)" in html
+    # Landscape phones are too short for the connect graphic + pinned footer;
+    # without this rule the CTA falls ~100px below the fold at 844x390.
+    assert "@media (max-height: 500px) and (max-width: 960.98px)" in html
+    assert "@media (max-width: 1080px)" not in html
+    assert "@media (max-width: 620px)" not in html
+    # The desktop story panel must be off by default, not merely overridden.
+    assert ".cl-visual-panel {\ndisplay: none;\n}" in html
+    assert "env(safe-area-inset-bottom)" in html
+    assert "@media (hover: hover)" in html
+    assert "Pretendard" in html
+    # Meta partner-status wording is not permitted; only the login-method claim.
+    assert "Meta 공식 로그인 방식" in html
+    assert "공식파트너" not in html
     assert "cl-login-page" in html
-    assert "인스타그램으로 계속하기" in html
+    assert "Instagram으로 계속하기" in html
     assert "href=\"https://instagram.example/oauth?next=/Login&amp;state=a&quot;b&amp;scope=x&lt;y&gt;\"" in html
     assert 'target="_blank"' in html
     assert 'rel="noopener noreferrer"' in html
     assert 'href="/"' in html
     assert 'href="/Privacy"' in html
+
+
+def test_breakpoint_blocks_are_in_cascade_order(login_patches):
+    """The media queries have equal specificity, so source order is the ONLY
+    thing making them resolve correctly. Substring assertions stay green if the
+    blocks get reordered, which would silently break the viewports they fix.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    base = html.index(".cl-login-page .cl-form-card {")
+    bp421 = html.index("@media (min-width: 421px)")
+    bp961 = html.index("@media (min-width: 961px)")
+    short = html.index("@media (max-height: 720px) and (max-width: 960.98px)")
+    landscape = html.index("@media (max-height: 500px) and (max-width: 960.98px)")
+    hover = html.index("@media (hover: hover)")
+
+    # Mobile base must precede every min-width block that widens it.
+    assert base < bp421 < bp961, "mobile-first order broken"
+    # 500px must come after 720px: both match a landscape phone and the tighter
+    # one has to win, which it only does by being later.
+    assert short < landscape, "landscape block must follow the short-viewport block"
+    # Hover last so it can override the touch-safe defaults.
+    assert bp961 < hover
+
+
+def test_heading_elements_avoid_streamlit_custom_heading(login_patches):
+    """Streamlit's CustomHeading overwrites the id on any real h1/h2, which kills
+    the aria-labelledby on both sections and adds "Link to heading" tab stops.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    assert "<h1" not in html and "<h2" not in html
+    for element in (
+        '<p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">',
+        '<p class="cl-story-title" id="cl-story-title" role="heading" aria-level="2">',
+    ):
+        assert element in html, f"heading lost its role/id wiring: {element}"
+
+    # Each section's aria-labelledby must point at an id that exists.
+    for section_id in ("cl-form-title", "cl-story-title"):
+        assert f'aria-labelledby="{section_id}"' in html
+        assert f'id="{section_id}"' in html
+
+
+def test_no_bare_element_selector_outranks_a_component_rule(login_patches):
+    """A descendant selector like ".cl-story-copy p" is (0,2,1) and silently
+    outranks the (0,2,0) .cl-story-title / .cl-eyebrow rules inside the same
+    container -- which flattened the desktop story panel to body text. Every
+    component rule must be class-only so specificity stays uniform.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    offenders = re.findall(
+        r"^\.cl-login-page(?: \.[a-z0-9-]+)* ([a-z]+[a-z0-9]*) \{", html, re.MULTILINE
+    )
+    # h1/h2/p/a appear once in the deliberate Streamlit reset, and svg/strong/span
+    # rules are scoped to a single component; a bare element after a component
+    # class is what breaks sibling class rules.
+    assert set(offenders) <= {"h1", "h2", "p", "a", "svg", "strong", "span"}, offenders
+    assert ".cl-story-copy p {" not in html
+    assert ".cl-login-page .cl-story-lead {" in html
+
+
+def test_login_styles_outrank_streamlit_theme(login_patches):
+    """Streamlit themes markdown h1-h6/a via ".st-emotion-cache-xxxx h1", which
+    beats a bare single-class selector -- including font-family "Source Sans",
+    which has no Korean glyphs and renders the headline as tofu boxes. Component
+    rules must stay scoped under .cl-login-page so they win on specificity.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    # The brand font must be forced across the subtree, not merely inherited.
+    assert 'font-family: "Pretendard Variable"' in html
+    assert "sans-serif !important;" in html
+
+    # Streamlit's heading padding and link underline must be neutralised.
+    assert "text-decoration: none !important;" in html
+
+    # Text rules that collide with Streamlit's element selectors must carry the
+    # two-class scope. A bare ".cl-form-title {" would silently lose again.
+    for scoped in (
+        ".cl-login-page .cl-form-title {",
+        ".cl-login-page .cl-lead {",
+        ".cl-login-page .cl-instagram-button {",
+        ".cl-login-page .cl-trust-copy {",
+    ):
+        assert scoped in html, f"unscoped selector regressed: {scoped}"
+
+    assert "\n.cl-form-title {" not in html
+    assert "\n.cl-instagram-button {" not in html
 
 
 def test_success_callback_preserves_token_save_session_and_clears_query(login_patches, monkeypatch):
