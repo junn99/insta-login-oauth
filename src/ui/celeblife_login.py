@@ -600,6 +600,11 @@ _STYLE_TEMPLATE = Template(
       .cl-login-page .cl-visual-panel {
         position: relative;
         display: block;
+        /* Definite height, not just min-height: .cl-story-inner below resolves
+           min-height: 100% against this, and a percentage against an auto-height
+           parent is not reliably resolved outside Chromium. */
+        height: 100vh;
+        height: 100dvh;
         min-height: 100vh;
         min-height: 100dvh;
         background:
@@ -801,7 +806,9 @@ _STYLE_TEMPLATE = Template(
         word-break: keep-all;
       }
 
-      .cl-login-page .cl-story-copy p {
+      /* Must NOT be ".cl-story-copy p": that is (0,2,1) and would outrank the
+         (0,2,0) .cl-story-title and .cl-eyebrow rules sharing this container. */
+      .cl-login-page .cl-story-lead {
         margin: 12px 0 0;
         color: var(--cl-gray-600);
         font-size: 16px;
@@ -862,7 +869,7 @@ _STYLE_TEMPLATE = Template(
        Short phones: keep the CTA inside the first viewport.
        --------------------------------------------------------------- */
 
-    @media (max-height: 720px) and (max-width: 960px) {
+    @media (max-height: 720px) and (max-width: 960.98px) {
       .cl-login-page .cl-mobile-visual {
         height: 92px;
         margin-top: 6px;
@@ -909,7 +916,7 @@ _STYLE_TEMPLATE = Template(
        footer; drop both so the CTA stays in the first screen.
        --------------------------------------------------------------- */
 
-    @media (max-height: 500px) and (max-width: 960px) {
+    @media (max-height: 500px) and (max-width: 960.98px) {
       .cl-login-page .cl-mobile-visual,
       .cl-login-page .cl-card-footer {
         display: none;
@@ -1045,7 +1052,7 @@ def render_login_page(
             <div class="cl-story-copy">
               <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
               <p class="cl-story-title" id="cl-story-title" role="heading" aria-level="2">인스타그램을 연결해 주세요</p>
-              <p>
+              <p class="cl-story-lead">
                 채널 데이터를 바탕으로 셀럽님에게 꼭 맞는 판매 전략을 설계합니다.
               </p>
             </div>

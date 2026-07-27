@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -116,10 +117,10 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     # the old desktop-first structure.
     assert "@media (min-width: 421px)" in html
     assert "@media (min-width: 961px)" in html
-    assert "@media (max-height: 720px) and (max-width: 960px)" in html
+    assert "@media (max-height: 720px) and (max-width: 960.98px)" in html
     # Landscape phones are too short for the connect graphic + pinned footer;
     # without this rule the CTA falls ~100px below the fold at 844x390.
-    assert "@media (max-height: 500px) and (max-width: 960px)" in html
+    assert "@media (max-height: 500px) and (max-width: 960.98px)" in html
     assert "@media (max-width: 1080px)" not in html
     assert "@media (max-width: 620px)" not in html
     # The desktop story panel must be off by default, not merely overridden.
@@ -151,8 +152,8 @@ def test_breakpoint_blocks_are_in_cascade_order(login_patches):
     base = html.index(".cl-login-page .cl-form-card {")
     bp421 = html.index("@media (min-width: 421px)")
     bp961 = html.index("@media (min-width: 961px)")
-    short = html.index("@media (max-height: 720px) and (max-width: 960px)")
-    landscape = html.index("@media (max-height: 500px) and (max-width: 960px)")
+    short = html.index("@media (max-height: 720px) and (max-width: 960.98px)")
+    landscape = html.index("@media (max-height: 500px) and (max-width: 960.98px)")
     hover = html.index("@media (hover: hover)")
 
     # Mobile base must precede every min-width block that widens it.
@@ -183,6 +184,27 @@ def test_heading_elements_avoid_streamlit_custom_heading(login_patches):
     for section_id in ("cl-form-title", "cl-story-title"):
         assert f'aria-labelledby="{section_id}"' in html
         assert f'id="{section_id}"' in html
+
+
+def test_no_bare_element_selector_outranks_a_component_rule(login_patches):
+    """A descendant selector like ".cl-story-copy p" is (0,2,1) and silently
+    outranks the (0,2,0) .cl-story-title / .cl-eyebrow rules inside the same
+    container -- which flattened the desktop story panel to body text. Every
+    component rule must be class-only so specificity stays uniform.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    offenders = re.findall(
+        r"^\.cl-login-page(?: \.[a-z0-9-]+)* ([a-z]+[a-z0-9]*) \{", html, re.MULTILINE
+    )
+    # h1/h2/p/a appear once in the deliberate Streamlit reset, and svg/strong/span
+    # rules are scoped to a single component; a bare element after a component
+    # class is what breaks sibling class rules.
+    assert set(offenders) <= {"h1", "h2", "p", "a", "svg", "strong", "span"}, offenders
+    assert ".cl-story-copy p {" not in html
+    assert ".cl-login-page .cl-story-lead {" in html
 
 
 def test_login_styles_outrank_streamlit_theme(login_patches):
