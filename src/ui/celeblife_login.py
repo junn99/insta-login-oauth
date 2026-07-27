@@ -4,11 +4,23 @@ Mobile-first: the base stylesheet targets a 360px-wide phone and the desktop
 split layout is layered on at >=961px. See
 ``celeblife_instagram_onboarding_ui/DESIGN_SYSTEM.md`` for the brand tokens.
 
-Every component selector is scoped under ``.cl-login-page`` on purpose. The
-Streamlit theme styles markdown ``h1``-``h6``/``a`` through emotion classes
-(``.st-emotion-cache-xxxx h1``), which outranks a bare single-class selector --
-including ``font-family: "Source Sans"``, a face with no Korean glyphs. The
-two-class scoping wins deterministically regardless of stylesheet order.
+Two Streamlit quirks are worked around here; both look like mistakes:
+
+1. Every component selector is scoped under ``.cl-login-page``. The Streamlit
+   theme styles markdown ``h1``-``h6``/``a`` through emotion classes
+   (``.st-emotion-cache-xxxx h1``), which outranks a bare single-class selector
+   -- including ``font-family: "Source Sans"``, a face with no Korean glyphs.
+   The two-class scoping wins regardless of stylesheet order.
+
+2. The headings are ``<p role="heading" aria-level>``, not ``<h1>``/``<h2>``.
+   Streamlit renders every markdown heading through its ``CustomHeading``
+   component, which spreads its own props *after* ours and so overwrites the
+   ``id`` with a slug of the heading text -- for Korean text, slugify yields an
+   empty string and it falls back to an ``xxhash`` digest. That silently breaks
+   the ``aria-labelledby`` on both ``<section>`` elements, leaving them with no
+   accessible name, and injects a wrapper plus a focusable "Link to heading"
+   anchor into the tab order. There is no way to opt out from Python. Do not
+   "restore" real heading tags without re-checking those two things.
 
 Place this file at:
     src/ui/celeblife_login.py
@@ -77,7 +89,6 @@ def _instagram_icon(size: int) -> str:
     return f"""
     <svg
       aria-hidden="true"
-      class="cl-ig-glyph"
       width="{size}"
       height="{size}"
       viewBox="0 0 24 24"
@@ -165,7 +176,7 @@ _STYLE_TEMPLATE = Template(
       --cl-purple-soft: #faf8ff;
       --cl-ink: #17131f;
       --cl-gray-600: #77717f;
-      --cl-gray-500: #918b99;
+      --cl-gray-500: #75707d;
       --cl-line: #e8e4ed;
       --cl-logo: url("$logo_uri");
       --cl-symbol: url("$symbol_uri");
@@ -1033,7 +1044,7 @@ def render_login_page(
 
             <div class="cl-story-copy">
               <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
-              <h2 class="cl-story-title" id="cl-story-title">인스타그램을 연결해 주세요</h2>
+              <p class="cl-story-title" id="cl-story-title" role="heading" aria-level="2">인스타그램을 연결해 주세요</p>
               <p>
                 채널 데이터를 바탕으로 셀럽님에게 꼭 맞는 판매 전략을 설계합니다.
               </p>
@@ -1057,12 +1068,12 @@ def render_login_page(
             <div class="cl-symbol-mini"></div>
           </div>
 
-          <div class="cl-heading-group">
+          <div>
             <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
-            <h1 class="cl-form-title" id="cl-form-title">
+            <p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">
               인스타그램에 로그인하고<br>
               셀럽라이프와 연결해 주세요
-            </h1>
+            </p>
             <p class="cl-lead">
               연결된 채널의 콘텐츠와 반응 데이터를 분석해 셀럽님의 팬덤에 가장 잘 맞는
               제품과 판매 전략을 설계합니다. 명시적인 동의 없이 어떠한 작업도

@@ -139,6 +139,52 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert 'href="/Privacy"' in html
 
 
+def test_breakpoint_blocks_are_in_cascade_order(login_patches):
+    """The media queries have equal specificity, so source order is the ONLY
+    thing making them resolve correctly. Substring assertions stay green if the
+    blocks get reordered, which would silently break the viewports they fix.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    base = html.index(".cl-login-page .cl-form-card {")
+    bp421 = html.index("@media (min-width: 421px)")
+    bp961 = html.index("@media (min-width: 961px)")
+    short = html.index("@media (max-height: 720px) and (max-width: 960px)")
+    landscape = html.index("@media (max-height: 500px) and (max-width: 960px)")
+    hover = html.index("@media (hover: hover)")
+
+    # Mobile base must precede every min-width block that widens it.
+    assert base < bp421 < bp961, "mobile-first order broken"
+    # 500px must come after 720px: both match a landscape phone and the tighter
+    # one has to win, which it only does by being later.
+    assert short < landscape, "landscape block must follow the short-viewport block"
+    # Hover last so it can override the touch-safe defaults.
+    assert bp961 < hover
+
+
+def test_heading_elements_avoid_streamlit_custom_heading(login_patches):
+    """Streamlit's CustomHeading overwrites the id on any real h1/h2, which kills
+    the aria-labelledby on both sections and adds "Link to heading" tab stops.
+    """
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    assert "<h1" not in html and "<h2" not in html
+    for element in (
+        '<p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">',
+        '<p class="cl-story-title" id="cl-story-title" role="heading" aria-level="2">',
+    ):
+        assert element in html, f"heading lost its role/id wiring: {element}"
+
+    # Each section's aria-labelledby must point at an id that exists.
+    for section_id in ("cl-form-title", "cl-story-title"):
+        assert f'aria-labelledby="{section_id}"' in html
+        assert f'id="{section_id}"' in html
+
+
 def test_login_styles_outrank_streamlit_theme(login_patches):
     """Streamlit themes markdown h1-h6/a via ".st-emotion-cache-xxxx h1", which
     beats a bare single-class selector -- including font-family "Source Sans",
