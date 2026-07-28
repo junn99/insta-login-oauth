@@ -122,15 +122,6 @@ def _sparkle(modifier: str) -> str:
     """
 
 
-def _back_arrow() -> str:
-    return """
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none">
-      <path d="M16 10H4m0 0 5-5m-5 5 5 5" stroke="currentColor"
-        stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    """
-
-
 # CSS is kept out of the f-string so that braces need no escaping.
 # string.Template only reacts to "$", which never appears in CSS.
 _STYLE_TEMPLATE = Template(
@@ -461,8 +452,7 @@ _STYLE_TEMPLATE = Template(
     }
 
     .cl-login-page .cl-instagram-button:focus-visible,
-    .cl-login-page .cl-privacy-link:focus-visible,
-    .cl-login-page .cl-back-link:focus-visible {
+    .cl-login-page .cl-privacy-link:focus-visible {
       outline: 3px solid rgba(125, 79, 222, 0.27);
       outline-offset: 3px;
     }
@@ -490,28 +480,6 @@ _STYLE_TEMPLATE = Template(
       width: 16px;
       height: 16px;
       color: #a989eb;
-    }
-
-    .cl-login-page .cl-back-link {
-      display: inline-flex;
-      min-height: 44px;
-      align-items: center;
-      gap: 9px;
-      color: #76717d;
-      font-size: 15px;
-      font-weight: 480;
-    }
-
-    .cl-login-page .cl-back-link svg {
-      width: 20px;
-      height: 20px;
-      transition: transform 180ms ease;
-    }
-
-    .cl-login-page .cl-form-card .cl-back-link {
-      justify-content: center;
-      width: 100%;
-      margin-top: 2px;
     }
 
     /* ---------------------------------------------------------------
@@ -818,12 +786,6 @@ _STYLE_TEMPLATE = Template(
         word-break: keep-all;
       }
 
-      .cl-login-page .cl-visual-panel .cl-back-link {
-        position: absolute;
-        bottom: 30px;
-        left: 56px;
-      }
-
       .cl-login-page .cl-form-panel {
         min-height: 100vh;
         min-height: 100dvh;
@@ -905,10 +867,6 @@ _STYLE_TEMPLATE = Template(
         padding-bottom: max(16px, env(safe-area-inset-bottom));
       }
 
-      .cl-login-page .cl-form-card .cl-back-link {
-        min-height: 38px;
-        margin-top: 0;
-      }
     }
 
     /* ---------------------------------------------------------------
@@ -978,13 +936,6 @@ _STYLE_TEMPLATE = Template(
         background: var(--cl-purple-soft);
       }
 
-      .cl-login-page .cl-back-link:hover {
-        color: var(--cl-purple);
-      }
-
-      .cl-login-page .cl-back-link:hover svg {
-        transform: translateX(-3px);
-      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1007,11 +958,11 @@ def render_login_page(
 ) -> None:
     """Render the full-screen CelebLife Instagram OAuth entry page."""
 
+    _ = back_url  # Kept for callers; the login screen no longer renders a back action.
     logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
     symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
 
     safe_oauth_url = html.escape(oauth_url, quote=True)
-    safe_back_url = html.escape(back_url, quote=True)
     safe_privacy_url = html.escape(privacy_url, quote=True)
 
     styles = _STYLE_TEMPLATE.substitute(
@@ -1057,11 +1008,6 @@ def render_login_page(
               </p>
             </div>
           </div>
-
-          <a class="cl-back-link" href="{safe_back_url}" target="_self">
-            {_back_arrow()}
-            <span>이전으로</span>
-          </a>
         </div>
       </section>
 
@@ -1125,10 +1071,6 @@ def render_login_page(
               {_shield_icon()}
               <span>로그인 정보는 셀럽라이프에 저장되지 않아요.</span>
             </div>
-            <a class="cl-back-link" href="{safe_back_url}" target="_self">
-              {_back_arrow()}
-              <span>이전으로</span>
-            </a>
           </div>
         </div>
       </section>
