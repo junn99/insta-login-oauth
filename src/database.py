@@ -1,6 +1,7 @@
 """Database operations for Supabase."""
 
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from supabase import create_client, Client
@@ -8,6 +9,8 @@ from supabase import create_client, Client
 from .config import config
 from .models import User, Token, Insight
 
+
+logger = logging.getLogger(__name__)
 
 _client: Optional[Client] = None
 
@@ -55,15 +58,25 @@ def get_client() -> Client:
 
 
 def init_db():
-    """Initialize database tables. Run this SQL in Supabase SQL Editor first."""
-    # Tables should be created via Supabase Dashboard or SQL Editor
-    # This function just verifies connection
+    """Verify the Supabase connection. Tables come from ``supabase_schema.sql``.
+
+    Deliberately non-fatal: this runs on every page load, so a transient
+    Supabase outage must not take the whole page down. It logs instead of
+    raising -- without the log line a bad key, a missing table or an RLS policy
+    that denies our role all look identical to a healthy connection, and the
+    failure only surfaces later inside the OAuth callback.
+    """
     client = get_client()
-    # Test connection by checking if users table exists
     try:
         client.table("users").select("id").limit(1).execute()
     except Exception:
-        pass  # Table might not exist yet
+        logger.warning(
+            "Supabase connectivity check failed against %s -- the app will keep "
+            "serving pages but reads/writes are likely broken. Check that "
+            "SUPABASE_KEY is valid and that supabase_schema.sql has been run.",
+            config.SUPABASE_URL or "<unset SUPABASE_URL>",
+            exc_info=True,
+        )
 
 
 # User operations

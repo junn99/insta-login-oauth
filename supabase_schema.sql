@@ -56,16 +56,32 @@ CREATE INDEX idx_insights_metric ON insights(metric_name);
 CREATE INDEX idx_tokens_user ON tokens(user_id);
 CREATE INDEX idx_audience_user ON audience_data(user_id);
 
--- Enable Row Level Security (optional but recommended)
+-- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE insights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audience_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE collection_log ENABLE ROW LEVEL SECURITY;
 
--- Allow all operations for authenticated service role
-CREATE POLICY "Service role full access" ON users FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON tokens FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON insights FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON audience_data FOR ALL USING (true);
-CREATE POLICY "Service role full access" ON collection_log FOR ALL USING (true);
+-- Allow all operations for the service role only.
+--
+-- The "TO service_role" clause is load-bearing. Omitting it makes the policy
+-- apply "TO PUBLIC", which includes the "anon" role -- i.e. anyone holding the
+-- project's publishable/anon key could read every row, and tokens.access_token
+-- is stored in plaintext.
+--
+-- service_role itself has BYPASSRLS, so these policies are never actually
+-- evaluated for it; their real effect is that anon and authenticated now match
+-- no permissive policy and are denied. This app talks to Supabase server-side
+-- with the secret key only (see src/database.py get_client), so it needs no
+-- anon or authenticated access.
+CREATE POLICY "Service role full access" ON users
+    FOR ALL TO service_role USING (true);
+CREATE POLICY "Service role full access" ON tokens
+    FOR ALL TO service_role USING (true);
+CREATE POLICY "Service role full access" ON insights
+    FOR ALL TO service_role USING (true);
+CREATE POLICY "Service role full access" ON audience_data
+    FOR ALL TO service_role USING (true);
+CREATE POLICY "Service role full access" ON collection_log
+    FOR ALL TO service_role USING (true);

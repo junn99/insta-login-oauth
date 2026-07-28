@@ -1,5 +1,7 @@
 """Login page for Instagram OAuth."""
 
+import logging
+
 import streamlit as st
 
 from src.database import init_db, create_or_update_user, save_token
@@ -7,6 +9,8 @@ from src.oauth import get_oauth_url, validate_state, complete_oauth_flow
 from src.permission_badge import show_permission_badge
 from src.config import config
 from src.ui.celeblife_login import render_login_page
+
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="Login",
@@ -99,6 +103,11 @@ if "code" in params:
                 st.info("**대시보드**에서 인사이트를 확인하세요!")
 
         except Exception:
+            # The message stays generic on purpose -- the exception can carry the
+            # authorization code or app secret, so it must not reach the browser.
+            # It does need to reach the server log, or a failed token exchange and
+            # a failed Supabase write are indistinguishable from the outside.
+            logger.exception("OAuth callback failed while completing the login flow")
             st.error("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     # Clear query params
