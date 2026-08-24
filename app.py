@@ -3,8 +3,9 @@
 import streamlit as st
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from src.database import init_db
+from src.auth import hydrate_session_from_cookie, initialize_session_state
 from src.config import config
+from src.database import init_db
 
 # Page configuration
 st.set_page_config(
@@ -17,11 +18,9 @@ st.set_page_config(
 # Initialize database on app start
 init_db()
 
-# Initialize session state
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
-if "instagram_username" not in st.session_state:
-    st.session_state.instagram_username = None
+# Initialize and restore browser session state
+initialize_session_state()
+hydrate_session_from_cookie()
 if "scheduler_started" not in st.session_state:
     st.session_state.scheduler_started = False
 
@@ -47,10 +46,10 @@ def start_background_scheduler():
 
 
 # Check configuration before starting scheduler
-missing = config.validate()
+missing = config.validate_runtime()
 
-# Start scheduler only if fully configured
-if not missing and config.SUPABASE_URL:
+# Start scheduler only on the existing non-Vercel runtime.
+if not missing and config.SUPABASE_URL and config.scheduler_allowed():
     start_background_scheduler()
 
 
@@ -66,6 +65,12 @@ if missing:
 if st.session_state.user_id:
     st.success(f"✅ @{st.session_state.instagram_username} 로그인됨")
     st.info("**대시보드**에서 인사이트를 확인하세요.")
+    if config.IS_VERCEL:
+        st.link_button("로그아웃", "/auth/logout")
+    elif st.button("로그아웃"):
+        st.session_state.user_id = None
+        st.session_state.instagram_username = None
+        st.rerun()
 else:
     st.warning("시작하려면 인스타그램 비즈니스 계정으로 로그인해주세요.")
     st.info("사이드바의 **로그인** 페이지에서 계정을 연결하세요.")
@@ -86,4 +91,7 @@ with col2:
 
 with col3:
     st.markdown("### 3️⃣ 자동 수집")
-    st.write("인사이트는 6시간마다 자동으로 수집됩니다.")
+    if config.IS_VERCEL:
+        st.write("Preview에서는 자동 수집이 비활성화되어 있습니다.")
+    else:
+        st.write("인사이트는 6시간마다 자동으로 수집됩니다.")

@@ -1,0 +1,124 @@
+name: Manual Jobs
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job to run"
+        type: choice
+        required: true
+        default: connectivity
+        options:
+          - connectivity
+          - collect
+          - refresh
+      execute:
+        description: "Run the selected database job"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  connectivity:
+    name: Connectivity tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run pytest -q
+
+  collect:
+    name: Collect insights
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: connectivity
+    if: ${{ github.event.inputs.job == 'collect' && github.event.inputs.execute == 'true' }}
+    environment: preview-db
+    concurrency:
+      group: preview-db-manual-jobs
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Collect insights
+        run: uv run collect-insights
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          INSTAGRAM_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
+          INSTAGRAM_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}
+
+  refresh:
+    name: Refresh tokens
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: connectivity
+    if: ${{ github.event.inputs.job == 'refresh' && github.event.inputs.execute == 'true' }}
+    environment: preview-db
+    concurrency:
+      group: preview-db-manual-jobs
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Refresh tokens
+        run: uv run refresh-tokens
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          INSTAGRAM_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
+          INSTAGRAM_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          OAUTH_REDIRECT_URI: ${{ secrets.OAUTH_REDIRECT_URI }}
+          CONTACT_EMAIL: ${{ secrets.CONTACT_EMAIL }}

@@ -4,10 +4,11 @@ import logging
 
 import streamlit as st
 
-from src.database import init_db, create_or_update_user, save_token
-from src.oauth import get_oauth_url, validate_state, complete_oauth_flow
-from src.permission_badge import show_permission_badge
+from src.auth import hydrate_session_from_cookie
 from src.config import config
+from src.database import create_or_update_user, init_db, save_token
+from src.oauth import complete_oauth_flow, get_oauth_url, validate_state
+from src.permission_badge import show_permission_badge
 from src.ui.celeblife_login import render_login_page
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,42 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 init_db()
+hydrate_session_from_cookie()
 
 # Check for OAuth callback
 params = st.query_params
 
-if "code" in params:
+if config.IS_VERCEL and ("code" in params or "error" in params):
+    st.title("🔐 인스타그램 로그인")
+    st.error("로그인을 완료하지 못했습니다. Instagram으로 다시 로그인해 주세요.")
+    st.link_button(
+        "🔗 Instagram으로 다시 로그인",
+        get_oauth_url(),
+        type="primary",
+        use_container_width=True,
+    )
+    st.query_params.clear()
+    st.stop()
+
+if "auth_error" in params:
+    st.title("🔐 인스타그램 로그인")
+    error_messages = {
+        "access_denied": "권한 요청이 취소되었습니다.",
+        "missing_code": "인증 코드가 없습니다. 다시 시도해 주세요.",
+        "invalid_state": "로그인 세션이 유효하지 않거나 만료되었습니다.",
+        "configuration_error": "Preview 로그인 설정이 완료되지 않았습니다.",
+        "callback_failed": "로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    }
+    error_code = params.get("auth_error", "")
+    st.error(error_messages.get(error_code, "로그인을 완료하지 못했습니다."))
+    st.link_button(
+        "🔗 Instagram으로 다시 로그인",
+        get_oauth_url(),
+        type="primary",
+        use_container_width=True,
+    )
+
+elif "code" in params:
     st.title("🔐 인스타그램 로그인")
 
     code = params.get("code") or ""
@@ -102,12 +134,12 @@ if "code" in params:
 
                 st.info("**대시보드**에서 인사이트를 확인하세요!")
 
-        except Exception:
-            # The message stays generic on purpose -- the exception can carry the
-            # authorization code or app secret, so it must not reach the browser.
-            # It does need to reach the server log, or a failed token exchange and
-            # a failed Supabase write are indistinguishable from the outside.
-            logger.exception("OAuth callback failed while completing the login flow")
+        except Exception as exc:
+            # OAuth exceptions can include request URLs with credentials. Keep
+            # both the browser and server log sanitized.
+            logger.error(
+                "Legacy Streamlit OAuth callback failed (%s)", type(exc).__name__
+            )
             st.error("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
 
     # Clear query params
@@ -139,9 +171,22 @@ elif "error" in params:
 
 else:
     # Check config
-    missing = config.validate()
+    missing = config.validate_runtime()
     if missing:
         st.error(f"⚠️ 앱이 설정되지 않았습니다. 누락: {', '.join(missing)}")
         st.stop()
 
-    render_login_page(oauth_url=get_oauth_url(), back_url="/", privacy_url="/Privacy")
+    if st.session_state.get("user_id"):
+        st.success(f"@{st.session_state.instagram_username} 로그인됨")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.link_button("대시보드로 이동", "/Dashboard", use_container_width=True)
+        with col2:
+            if config.IS_VERCEL:
+                st.link_button("로그아웃", "/auth/logout", use_container_width=True)
+            elif st.button("로그아웃", use_container_width=True):
+                st.session_state.user_id = None
+                st.session_state.instagram_username = None
+                st.rerun()
+    else:
+        render_login_page(oauth_url=get_oauth_url(), back_url="/", privacy_url="/Privacy")

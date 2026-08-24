@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "functions": {
+    "asgi.py": {
+      "includeFiles": "{.streamlit/**,pages/**,assets/**}",
+      "maxDuration": 300
+    }
+  }
+}

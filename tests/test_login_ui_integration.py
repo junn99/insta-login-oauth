@@ -31,6 +31,9 @@ def login_patches(monkeypatch):
     }
     for key, value in required_config.items():
         monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", False, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", False, raising=False)
 
     calls = {
         "init_db": 0,
@@ -309,7 +312,95 @@ def test_success_callback_preserves_token_save_session_and_clears_query(login_pa
     assert app.session_state["user_id"] == 42
     assert app.session_state["instagram_username"] == "celeb_user"
     assert app.query_params == {}
-    assert app.success[0].value == "✅ @celeb_user 로그인 성공!"
+    # Streamlit 1.61 renders a leading emoji as the status icon instead of
+    # keeping it in the message value returned by AppTest.
+    assert app.success[0].value == "@celeb_user 로그인 성공!"
+
+
+def test_vercel_login_query_callback_does_not_exchange_token(login_patches, monkeypatch):
+    import src.config as config_module
+
+    oauth_module = login_patches["oauth"]
+    calls = login_patches["calls"]
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(
+        oauth_module,
+        "validate_state",
+        lambda state: (_ for _ in ()).throw(
+            AssertionError(f"state validation should not run on Vercel /Login: {state}")
+        ),
+    )
+
+    def fail_complete(code):
+        raise AssertionError(f"token exchange should not run on Vercel /Login: {code}")
+
+    monkeypatch.setattr(oauth_module, "complete_oauth_flow", fail_complete)
+
+    app = _run_app({"code": "auth-code", "state": "valid-state"})
+
+    assert calls["complete_oauth_flow"] == []
+    assert calls["oauth_url"] == 1
+    assert app.query_params == {}
+    assert "로그인을 완료하지 못했습니다" in app.error[0].value
+
+
+def test_vercel_login_error_query_uses_sanitized_retry(login_patches, monkeypatch):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+
+    app = _run_app(
+        {
+            "error": "access_denied",
+            "error_reason": "user_denied",
+            "error_description": "sensitive callback details",
+        }
+    )
+
+    assert app.query_params == {}
+    assert "로그인을 완료하지 못했습니다" in app.error[0].value
+    assert "sensitive callback details" not in _all_markdown(app)
+
+
+def test_logged_in_non_vercel_login_page_does_not_link_asgi_logout(
+    login_patches, monkeypatch
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", False, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", False, raising=False)
+
+    app = _run_app()
+    app.session_state["user_id"] = 42
+    app.session_state["instagram_username"] = "celeb_user"
+    app.run()
+
+    assert "/auth/logout" not in [button.url for button in _link_buttons(app)]
+    assert any(button.label == "로그아웃" for button in app.button)
+
+
+def test_logged_in_vercel_login_page_links_asgi_logout(login_patches, monkeypatch):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    for key, value in {
+        "OAUTH_REDIRECT_URI": "https://preview.example/auth/callback",
+        "SESSION_COOKIE_SECRET": "s" * 32,
+        "SUPABASE_KEY": "sb_secret_server",
+    }.items():
+        monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
+
+    app = _run_app()
+    app.session_state["user_id"] = 42
+    app.session_state["instagram_username"] = "celeb_user"
+    app.run()
+
+    assert "/auth/logout" in [button.url for button in _link_buttons(app)]
 
 
 def test_invalid_state_does_not_exchange_token_and_clears_query(login_patches, monkeypatch):

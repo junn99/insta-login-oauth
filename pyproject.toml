@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Instagram Insights Collection System with Streamlit"
 requires-python = ">=3.11"
 dependencies = [
-    "streamlit>=1.31.0",
+    "streamlit>=1.61,<1.62",
     "supabase>=2.3.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
@@ -25,8 +25,11 @@ package-mode = false
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
-[tool.uv]
-dev-dependencies = [
+[tool.vercel]
+entrypoint = "asgi:app"
+
+[dependency-groups]
+dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
 ]

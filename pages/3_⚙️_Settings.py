@@ -1,12 +1,15 @@
 """Settings page for account management."""
 
-import streamlit as st
 from datetime import datetime, timezone
 
+import streamlit as st
+
+from src.auth import hydrate_session_from_cookie
+from src.config import config
 from src.database import (
-    init_db,
     get_user_by_id,
     get_user_token,
+    init_db,
     save_token,
 )
 from src.oauth import refresh_long_lived_token
@@ -14,8 +17,13 @@ from src.permission_badge import show_permission_badge
 
 st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
 init_db()
+hydrate_session_from_cookie()
 
 st.title("⚙️ 설정")
+
+preview_safe_mode = config.preview_safe_mode()
+if preview_safe_mode:
+    st.info("Vercel Preview 안전모드에서는 토큰 수동 갱신이 비활성화됩니다.")
 
 user_id = st.session_state.get("user_id")
 if not user_id:
@@ -60,7 +68,11 @@ with st.expander(f"@{selected_user.instagram_username}", expanded=True):
         else:
             st.info("토큰 상태 알 수 없음")
 
-    if st.button("🔄 토큰 갱신", key=f"refresh_{selected_user_id}"):
+    if st.button(
+        "🔄 토큰 갱신",
+        key=f"refresh_{selected_user_id}",
+        disabled=preview_safe_mode,
+    ):
         if user_token:
             try:
                 with st.spinner("토큰 갱신 중..."):
@@ -108,8 +120,8 @@ st.markdown("""
 - 오디언스 인구통계
 
 **데이터 수집:**
-- 인사이트는 6시간마다 자동으로 수집됩니다
-- 토큰은 만료 전 자동으로 갱신됩니다
+- 기존 Streamlit 운영 환경에서는 6시간마다 자동 수집됩니다
+- Vercel Preview에서는 수집과 토큰 수동 갱신이 비활성화됩니다
 
 **개인정보:**
 - 데이터는 비공개 데이터베이스에 안전하게 저장됩니다

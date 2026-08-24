@@ -1,25 +1,35 @@
 """Dashboard page for viewing Instagram insights."""
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
 from datetime import datetime, timedelta, timezone
 
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+from src.auth import hydrate_session_from_cookie
+from src.config import config
 from src.database import (
-    init_db,
-    get_user_by_id,
     get_insights,
-    get_latest_insights,
     get_latest_audience_data,
+    get_latest_insights,
+    get_user_by_id,
     get_user_token,
+    init_db,
 )
-from src.insights_collector import collect_insights_for_user, collect_audience_for_user
+from src.insights_collector import collect_audience_for_user, collect_insights_for_user
 from src.permission_badge import show_permission_badge
 
 st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
 init_db()
+hydrate_session_from_cookie()
 
 st.title("📊 인스타그램 인사이트 대시보드")
+
+preview_safe_mode = config.preview_safe_mode()
+if preview_safe_mode:
+    st.info(
+        "Vercel Preview 안전모드: 기존 데이터만 조회하며 새로운 수집은 비활성화되어 있습니다."
+    )
 
 user_id = st.session_state.get("user_id")
 if not user_id:
@@ -49,7 +59,10 @@ start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
 # Manual refresh button
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 데이터 새로고침"):
+if preview_safe_mode:
+    st.sidebar.info("Preview에서는 데이터 수집이 비활성화됩니다.")
+
+if st.sidebar.button("🔄 데이터 새로고침", disabled=preview_safe_mode):
     token = get_user_token(selected_user_id, "user")
     if token:
         with st.spinner("인사이트 수집 중..."):
@@ -74,8 +87,8 @@ insights = get_insights(selected_user_id, start_date=start_date)
 latest = get_latest_insights(selected_user_id)
 audience = get_latest_audience_data(selected_user_id)
 
-# Auto-collect if no data exists (first login)
-if not insights and not latest:
+# Auto-collect if no data exists (first login), except in Preview safe mode.
+if not preview_safe_mode and not insights and not latest:
     token = get_user_token(selected_user_id, "user")
     if token:
         with st.spinner("첫 로그인 데이터를 수집하고 있습니다..."):
@@ -163,9 +176,12 @@ if insights:
             fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info(
-        "아직 인사이트 데이터가 없습니다. '데이터 새로고침' 버튼을 클릭하여 수집하세요."
-    )
+    if preview_safe_mode:
+        st.info("Preview 안전모드에서는 빈 대시보드가 정상입니다.")
+    else:
+        st.info(
+            "아직 인사이트 데이터가 없습니다. '데이터 새로고침' 버튼을 클릭하여 수집하세요."
+        )
 
 st.markdown("---")
 
@@ -210,9 +226,12 @@ if audience:
                 st.plotly_chart(fig, use_container_width=True)
             break
 else:
-    st.info(
-        "아직 오디언스 데이터가 없습니다. '데이터 새로고침' 버튼을 클릭하여 수집하세요."
-    )
+    if preview_safe_mode:
+        st.info("Preview 안전모드에서는 오디언스 수집을 시작하지 않습니다.")
+    else:
+        st.info(
+            "아직 오디언스 데이터가 없습니다. '데이터 새로고침' 버튼을 클릭하여 수집하세요."
+        )
 
 # Permission usage summary (for Meta App Review)
 st.markdown("---")

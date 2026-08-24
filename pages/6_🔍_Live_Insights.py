@@ -1,19 +1,28 @@
 """Live Insights - Real-time API demonstration for Meta App Review."""
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
-from src.database import init_db, get_user_by_id, get_user_token
+from src.auth import hydrate_session_from_cookie
+from src.config import config
+from src.database import get_user_by_id, get_user_token, init_db
 from src.instagram_api import InstagramAPI, InstagramAPIError
 from src.permission_badge import show_permission_badge
 
 st.set_page_config(page_title="Live Insights", page_icon="🔍", layout="wide")
 init_db()
+hydrate_session_from_cookie()
 
 st.title("🔍 실시간 인사이트 / Live Insights")
 st.info(
     "This page demonstrates live Instagram Graph API calls using the granted permissions."
 )
+
+if config.preview_safe_mode():
+    st.info(
+        "Vercel Preview 안전모드에서는 Instagram API 실시간 호출이 비활성화됩니다."
+    )
+    st.stop()
 
 user_id = st.session_state.get("user_id")
 if not user_id:
