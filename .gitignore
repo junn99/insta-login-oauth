@@ -53,3 +53,6 @@ celeblife_instagram_onboarding_ui/
 
 # openclaw
 .sisyphus/
+
+# Vercel local project metadata
+.vercel/
