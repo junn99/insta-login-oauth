@@ -16,7 +16,7 @@
 | DB 변경 | 없음 |
 | 운영 전환 | 하지 않음 |
 
-Vercel Hobby Function은 `vercel.json`에서 `maxDuration: 300`으로 설정되어 있다. Streamlit WebSocket 연결은 장시간 유지되지 않을 수 있으므로 Preview 검증 때 40분 이상 켜 둔 뒤 새로고침/재연결 동작을 확인한다.
+Vercel 설정 파일은 스키마만 두고 프레임워크 감지를 허용한다. Streamlit WebSocket 연결은 장시간 유지되지 않을 수 있으므로 Preview 검증 때 40분 이상 켜 둔 뒤 새로고침/재연결 동작을 확인한다.
 
 ## 2. Preview 환경 변수
 
