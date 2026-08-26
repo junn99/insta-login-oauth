@@ -107,6 +107,10 @@ class Config:
         """Return the fail-safe write policy for a Vercel Preview deployment."""
         return cls.VERCEL_ENV.lower() == "preview" or cls.PREVIEW_SAFE_MODE
 
+    def is_vercel_preview(self) -> bool:
+        """Return true only for an actual Vercel Preview runtime."""
+        return self.IS_VERCEL and self.VERCEL_ENV.lower() == "preview"
+
     @classmethod
     def scheduler_allowed(cls) -> bool:
         """The in-process scheduler must never run inside a Vercel Function."""

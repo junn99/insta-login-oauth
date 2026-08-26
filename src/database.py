@@ -61,13 +61,21 @@ def init_db():
     """Verify the Supabase connection. Tables come from ``supabase_schema.sql``.
 
     Deliberately non-fatal: this runs on every page load, so a transient
-    Supabase outage must not take the whole page down. It logs instead of
-    raising -- without the log line a bad key, a missing table or an RLS policy
-    that denies our role all look identical to a healthy connection, and the
-    failure only surfaces later inside the OAuth callback.
+    Supabase outage or missing preview config must not take the whole page
+    down. It logs instead of raising -- without the log line a bad key, a
+    missing table or an RLS policy that denies our role all look identical to a
+    healthy connection, and the failure only surfaces later inside the OAuth
+    callback.
     """
-    client = get_client()
+    if not config.SUPABASE_URL or not config.SUPABASE_KEY:
+        logger.warning(
+            "Supabase connectivity check skipped because SUPABASE_URL or "
+            "SUPABASE_KEY is unset."
+        )
+        return
+
     try:
+        client = get_client()
         client.table("users").select("id").limit(1).execute()
     except Exception:
         logger.warning(

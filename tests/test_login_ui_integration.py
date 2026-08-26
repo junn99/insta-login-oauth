@@ -93,6 +93,16 @@ def _link_buttons(app):
     ]
 
 
+def _disabled_instagram_cta(html: str) -> str:
+    match = re.search(
+        r"<button[^>]*class=\"cl-instagram-button\"[^>]*>.*?</button>",
+        html,
+        re.DOTALL,
+    )
+    assert match, html
+    return match.group(0)
+
+
 def test_login_assets_exist_and_are_non_empty():
     expected_assets = [
         ASSET_DIR / "celeblife_logo_purple.png",
@@ -143,6 +153,169 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert "cl-back-link" not in html
     assert 'href="/"' not in html
     assert 'href="/Privacy"' in html
+
+
+def test_preview_missing_config_login_renders_disabled_ui_without_oauth_or_db(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+    import src.database as database_module
+    import src.oauth as oauth_module
+
+    calls = login_patches["calls"]
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    for key in (
+        "INSTAGRAM_APP_ID",
+        "INSTAGRAM_APP_SECRET",
+        "OAUTH_REDIRECT_URI",
+        "CONTACT_EMAIL",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+    ):
+        monkeypatch.setattr(config_module.Config, key, "", raising=False)
+        monkeypatch.setattr(config_module.config, key, "", raising=False)
+
+    monkeypatch.setattr(
+        database_module,
+        "create_client",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview must not create Supabase client")
+        ),
+    )
+    monkeypatch.setattr(
+        oauth_module,
+        "get_oauth_url",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview must not generate OAuth URL")
+        ),
+    )
+    monkeypatch.setattr(
+        oauth_module,
+        "complete_oauth_flow",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview must not exchange token")
+        ),
+    )
+
+    app = _run_app({"code": "auth-code", "state": "state-value"})
+    html = _all_markdown(app)
+    cta = _disabled_instagram_cta(html)
+
+    assert not app.exception
+    assert calls["init_db"] == 0
+    assert calls["oauth_url"] == 0
+    assert calls["complete_oauth_flow"] == []
+    assert "cl-login-page" in html
+    assert app.error == []
+    assert app.query_params == {}
+    assert 'aria-disabled="true"' in cta
+    assert "disabled" in cta
+    assert "href=" not in cta
+    assert "javascript:" not in cta
+    assert 'href="#"' not in cta
+
+
+def test_render_login_page_disables_cta_when_oauth_url_is_missing(monkeypatch):
+    import src.ui.celeblife_login as login_ui
+
+    rendered = []
+    monkeypatch.setattr(
+        login_ui.st,
+        "markdown",
+        lambda body, unsafe_allow_html=False: rendered.append(
+            {"body": body, "unsafe": unsafe_allow_html}
+        ),
+    )
+
+    login_ui.render_login_page(oauth_url=None)
+
+    assert len(rendered) == 1
+    assert rendered[0]["unsafe"] is True
+    cta = _disabled_instagram_cta(rendered[0]["body"])
+    assert 'aria-disabled="true"' in cta
+    assert "disabled" in cta
+    assert "href=" not in cta
+    assert "javascript:" not in cta
+    assert 'href="#"' not in cta
+
+
+@pytest.mark.parametrize(
+    "query_params",
+    [
+        {"code": "auth-code", "state": "state-value"},
+        {
+            "error": "access_denied",
+            "error_reason": "user_denied",
+            "error_description": "sensitive callback details",
+        },
+        {"auth_error": "callback_failed"},
+    ],
+)
+def test_vercel_non_preview_missing_config_blocks_login_queries_before_side_effects(
+    login_patches,
+    monkeypatch,
+    query_params,
+):
+    import src.config as config_module
+    import src.oauth as oauth_module
+
+    calls = login_patches["calls"]
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "", raising=False)
+    for key in (
+        "INSTAGRAM_APP_ID",
+        "INSTAGRAM_APP_SECRET",
+        "OAUTH_REDIRECT_URI",
+        "CONTACT_EMAIL",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+    ):
+        monkeypatch.setattr(config_module.Config, key, "", raising=False)
+        monkeypatch.setattr(config_module.config, key, "", raising=False)
+
+    monkeypatch.setattr(
+        oauth_module,
+        "validate_state",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("missing config must stop before state validation")
+        ),
+    )
+    monkeypatch.setattr(
+        oauth_module,
+        "complete_oauth_flow",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("missing config must stop before token exchange")
+        ),
+    )
+
+    app = _run_app(query_params)
+    html = _all_markdown(app)
+
+    assert not app.exception
+    assert calls["init_db"] == 0
+    assert calls["oauth_url"] == 0
+    assert calls["complete_oauth_flow"] == []
+    assert app.query_params == {}
+    assert app.error
+    assert app.error[0].value == "앱 로그인 설정이 완료되지 않았습니다. 관리자에게 문의하세요."
+    assert "sensitive callback details" not in html
+    assert "cl-login-page" not in html
 
 
 def test_breakpoint_blocks_are_in_cascade_order(login_patches):
@@ -325,6 +498,13 @@ def test_vercel_login_query_callback_does_not_exchange_token(login_patches, monk
 
     monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
     monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    for key, value in {
+        "OAUTH_REDIRECT_URI": "https://preview.example/auth/callback",
+        "SESSION_COOKIE_SECRET": "s" * 32,
+        "SUPABASE_KEY": "sb_secret_server",
+    }.items():
+        monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
     monkeypatch.setattr(
         oauth_module,
         "validate_state",
@@ -351,6 +531,13 @@ def test_vercel_login_error_query_uses_sanitized_retry(login_patches, monkeypatc
 
     monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
     monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    for key, value in {
+        "OAUTH_REDIRECT_URI": "https://preview.example/auth/callback",
+        "SESSION_COOKIE_SECRET": "s" * 32,
+        "SUPABASE_KEY": "sb_secret_server",
+    }.items():
+        monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
 
     app = _run_app(
         {

@@ -19,6 +19,26 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+missing = config.validate_runtime()
+preview_ui_only = config.is_vercel_preview() and bool(missing)
+
+if preview_ui_only:
+    render_login_page(
+        oauth_url=None,
+        back_url="/",
+        privacy_url="/Privacy",
+        oauth_disabled=True,
+    )
+    st.query_params.clear()
+    st.stop()
+
+if missing:
+    st.title("🔐 인스타그램 로그인")
+    st.error("앱 로그인 설정이 완료되지 않았습니다. 관리자에게 문의하세요.")
+    st.query_params.clear()
+    st.stop()
+
 init_db()
 hydrate_session_from_cookie()
 
@@ -170,12 +190,6 @@ elif "error" in params:
     st.query_params.clear()
 
 else:
-    # Check config
-    missing = config.validate_runtime()
-    if missing:
-        st.error(f"⚠️ 앱이 설정되지 않았습니다. 누락: {', '.join(missing)}")
-        st.stop()
-
     if st.session_state.get("user_id"):
         st.success(f"@{st.session_state.instagram_username} 로그인됨")
         col1, col2 = st.columns(2)

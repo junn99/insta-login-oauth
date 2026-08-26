@@ -6,6 +6,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from src.auth import hydrate_session_from_cookie, initialize_session_state
 from src.config import config
 from src.database import init_db
+from src.ui.celeblife_login import render_login_page
 
 # Page configuration
 st.set_page_config(
@@ -14,6 +15,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Check configuration before touching database/session-backed runtime state.
+missing = config.validate_runtime()
+preview_ui_only = config.is_vercel_preview() and bool(missing)
+
+if preview_ui_only:
+    render_login_page(
+        oauth_url=None,
+        back_url="/",
+        privacy_url="/Privacy",
+        oauth_disabled=True,
+    )
+    st.stop()
 
 # Initialize database on app start
 init_db()
@@ -44,9 +58,6 @@ def start_background_scheduler():
     scheduler.start()
     st.session_state.scheduler_started = True
 
-
-# Check configuration before starting scheduler
-missing = config.validate_runtime()
 
 # Start scheduler only on the existing non-Vercel runtime.
 if not missing and config.SUPABASE_URL and config.scheduler_allowed():

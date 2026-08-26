@@ -425,6 +425,18 @@ _STYLE_TEMPLATE = Template(
       font-weight: 680;
     }
 
+    .cl-login-page button.cl-instagram-button {
+      appearance: none;
+      font-family: inherit;
+    }
+
+    .cl-login-page .cl-instagram-button[disabled],
+    .cl-login-page .cl-instagram-button[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.74;
+      transform: none;
+    }
+
     .cl-login-page .cl-instagram-icon {
       display: grid;
       place-items: center;
@@ -932,6 +944,14 @@ _STYLE_TEMPLATE = Template(
         transform: translateY(-1px);
       }
 
+      .cl-login-page .cl-instagram-button[disabled]:hover,
+      .cl-login-page .cl-instagram-button[aria-disabled="true"]:hover {
+        border-color: var(--cl-purple);
+        background: var(--cl-purple);
+        box-shadow: 0 12px 26px rgba(125, 79, 222, 0.2);
+        transform: none;
+      }
+
       .cl-login-page .cl-privacy-link:hover {
         background: var(--cl-purple-soft);
       }
@@ -951,18 +971,20 @@ _STYLE_TEMPLATE = Template(
 
 
 def render_login_page(
-    oauth_url: str,
+    oauth_url: str | None,
     *,
     back_url: str = "/",
     privacy_url: str = "/Privacy",
+    oauth_disabled: bool = False,
 ) -> None:
     """Render the full-screen CelebLife Instagram OAuth entry page."""
 
     _ = back_url  # Kept for callers; the login screen no longer renders a back action.
+    oauth_disabled = oauth_disabled or not oauth_url
     logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
     symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
 
-    safe_oauth_url = html.escape(oauth_url, quote=True)
+    safe_oauth_url = html.escape(oauth_url or "", quote=True)
     safe_privacy_url = html.escape(privacy_url, quote=True)
 
     styles = _STYLE_TEMPLATE.substitute(
@@ -1047,19 +1069,7 @@ def render_login_page(
           </div>
 
           <div class="cl-actions">
-            <a
-              class="cl-instagram-button"
-              href="{safe_oauth_url}"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span class="cl-instagram-icon">{_instagram_icon(21)}</span>
-              <span>Instagram으로 계속하기</span>
-              <svg aria-hidden="true" class="cl-button-arrow" viewBox="0 0 20 20" fill="none">
-                <path d="m7.5 4.5 5 5.5-5 5.5" stroke="currentColor"
-                  stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </a>
+            {_instagram_cta(safe_oauth_url, oauth_disabled=oauth_disabled)}
 
             <a class="cl-privacy-link" href="{safe_privacy_url}" target="_self">
               개인정보 및 권한 안내
@@ -1078,3 +1088,40 @@ def render_login_page(
     """
 
     st.markdown(_compact_html(styles + markup), unsafe_allow_html=True)
+
+
+def _instagram_cta(safe_oauth_url: str, *, oauth_disabled: bool) -> str:
+    icon = _instagram_icon(21)
+    arrow = """
+      <svg aria-hidden="true" class="cl-button-arrow" viewBox="0 0 20 20" fill="none">
+        <path d="m7.5 4.5 5 5.5-5 5.5" stroke="currentColor"
+          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    """
+
+    if oauth_disabled:
+        return f"""
+            <button
+              class="cl-instagram-button"
+              type="button"
+              aria-disabled="true"
+              disabled
+            >
+              <span class="cl-instagram-icon">{icon}</span>
+              <span>Instagram으로 계속하기</span>
+              {arrow}
+            </button>
+        """
+
+    return f"""
+            <a
+              class="cl-instagram-button"
+              href="{safe_oauth_url}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="cl-instagram-icon">{icon}</span>
+              <span>Instagram으로 계속하기</span>
+              {arrow}
+            </a>
+    """

@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -21,6 +22,20 @@ def _link_button_urls(app) -> list[str]:
         if type(element).__name__ == "UnknownElement"
         and getattr(element.proto, "url", "")
     ]
+
+
+def _all_markdown(app) -> str:
+    return "\n".join(element.value for element in app.markdown)
+
+
+def _disabled_instagram_cta(html: str) -> str:
+    match = re.search(
+        r"<button[^>]*class=\"cl-instagram-button\"[^>]*>.*?</button>",
+        html,
+        re.DOTALL,
+    )
+    assert match, html
+    return match.group(0)
 
 
 def _jwt_with_role(role: str) -> str:
@@ -120,6 +135,24 @@ def test_non_vercel_allows_existing_login_redirect_compatibility(monkeypatch):
     )
 
 
+def test_init_db_missing_supabase_config_does_not_create_client(monkeypatch):
+    import src.config as config_module
+    import src.database as database_module
+
+    monkeypatch.setattr(config_module.config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(database_module, "_client", None)
+    monkeypatch.setattr(
+        database_module,
+        "create_client",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("init_db must not construct Supabase client without config")
+        ),
+    )
+
+    database_module.init_db()
+
+
 def test_app_does_not_start_scheduler_on_vercel(monkeypatch):
     import src.config as config_module
     import src.database as database_module
@@ -143,6 +176,135 @@ def test_app_does_not_start_scheduler_on_vercel(monkeypatch):
     app.run(timeout=5)
 
     assert not app.exception
+
+
+def test_root_preview_missing_config_renders_login_visual_without_db_or_oauth(
+    monkeypatch,
+):
+    import src.config as config_module
+    import src.database as database_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(
+        database_module,
+        "init_db",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("credentialless preview root must not initialize DB")
+        ),
+    )
+    monkeypatch.setattr(
+        database_module,
+        "create_client",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview root must not create Supabase client")
+        ),
+    )
+
+    app = AppTest.from_file(APP_PAGE, default_timeout=5)
+    app.run(timeout=5)
+    html = _all_markdown(app)
+    cta = _disabled_instagram_cta(html)
+
+    assert not app.exception
+    assert "cl-login-page" in html
+    assert "Instagram으로 계속하기" in html
+    assert app.error == []
+    assert 'aria-disabled="true"' in cta
+    assert "disabled" in cta
+    assert "href=" not in cta
+    assert "javascript:" not in cta
+    assert 'href="#"' not in cta
+
+
+def test_vercel_production_safe_mode_missing_config_does_not_render_ui_only(
+    monkeypatch,
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_KEY", "", raising=False)
+
+    app = AppTest.from_file(APP_PAGE, default_timeout=5)
+    app.run(timeout=5)
+    html = _all_markdown(app)
+
+    assert not app.exception
+    assert app.error
+    assert "설정 누락" in app.error[0].value
+    assert "cl-login-page" not in html
+
+
+def test_non_vercel_safe_mode_missing_config_keeps_config_error(monkeypatch):
+    import src.config as config_module
+    import src.database as database_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.Config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", False, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", True, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_ID", "", raising=False)
+    monkeypatch.setattr(config_module.config, "INSTAGRAM_APP_SECRET", "", raising=False)
+    monkeypatch.setattr(config_module.config, "OAUTH_REDIRECT_URI", "", raising=False)
+    monkeypatch.setattr(config_module.config, "CONTACT_EMAIL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_URL", "", raising=False)
+    monkeypatch.setattr(config_module.config, "SUPABASE_KEY", "", raising=False)
+    monkeypatch.setattr(database_module, "create_client", lambda *args, **kwargs: None)
+
+    app = AppTest.from_file(APP_PAGE, default_timeout=5)
+    app.run(timeout=5)
+    html = _all_markdown(app)
+
+    assert not app.exception
+    assert app.error
+    assert "설정 누락" in app.error[0].value
+    assert "cl-login-page" not in html
 
 
 def test_logged_in_non_vercel_app_uses_streamlit_logout_button(monkeypatch):
