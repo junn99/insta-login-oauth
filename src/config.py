@@ -73,6 +73,10 @@ class Config:
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_PREVIEW_PROJECT_REF: str = os.getenv("SUPABASE_PREVIEW_PROJECT_REF", "")
+    SUPABASE_PRODUCTION_PROJECT_REF: str = os.getenv(
+        "SUPABASE_PRODUCTION_PROJECT_REF", ""
+    )
 
     # Deployment runtime
     IS_VERCEL: bool = _env_flag("VERCEL")
@@ -133,6 +137,36 @@ class Config:
         key_kind = _supabase_key_kind(cls.SUPABASE_KEY)
         if key_kind not in {"secret", "service_role"}:
             errors.append("SUPABASE_KEY (secret/service_role required)")
+
+        if cls.VERCEL_ENV.lower() == "preview":
+            errors.extend(cls.validate_preview_supabase_project())
+
+        return errors
+
+    @classmethod
+    def validate_preview_supabase_project(cls) -> list[str]:
+        """Fail closed unless Vercel Preview points at the Preview Supabase project."""
+        errors: list[str] = []
+        preview_ref = cls.SUPABASE_PREVIEW_PROJECT_REF.strip()
+        production_ref = cls.SUPABASE_PRODUCTION_PROJECT_REF.strip()
+
+        if not preview_ref:
+            errors.append("SUPABASE_PREVIEW_PROJECT_REF")
+        if not production_ref:
+            errors.append("SUPABASE_PRODUCTION_PROJECT_REF")
+        if preview_ref and production_ref and preview_ref == production_ref:
+            errors.append("SUPABASE_PREVIEW_PROJECT_REF (must differ from production)")
+
+        if cls.SUPABASE_URL:
+            try:
+                host = urlsplit(cls.SUPABASE_URL).hostname or ""
+            except ValueError:
+                host = ""
+            expected_host = f"{preview_ref}.supabase.co" if preview_ref else ""
+            if expected_host and host != expected_host:
+                errors.append(
+                    "SUPABASE_URL (Vercel Preview must use preview Supabase project)"
+                )
 
         return errors
 

@@ -1,23 +1,124 @@
 """Instagram Login OAuth flow for Instagram Business API."""
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
 import json
 import secrets
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any
 from urllib.parse import urlencode
 
 import requests
 
+from .consent import (
+    CONSENT_STATE_KEYS,
+    ConsentAcceptance,
+    consent_bundle_hash,
+    consent_payload,
+)
 from .config import config
+from .consent_binding import is_valid_binding_id, require_matching_binding
 from .models import InstagramAccount
 
 
 _STATE_TTL_SECONDS = 600
 _STATE_FUTURE_SKEW_SECONDS = 60
+_STATE_VERSION = 1
+
+
+class StateError(ValueError):
+    """Base class for browser-safe OAuth state validation failures."""
+
+    code = "invalid_state"
+
+    def __init__(self, message: str | None = None):
+        super().__init__(message or self.code)
+
+
+class InvalidStateError(StateError):
+    """State is malformed, unsigned, tampered with, or missing consent."""
+
+
+class ExpiredStateError(StateError):
+    """State signature is valid but the timestamp is outside the TTL."""
+
+    code = "expired_state"
+
+
+class StateValidationError(InvalidStateError):
+    """Backward-compatible state validation error."""
+
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class ParsedConsentState:
+    version: int
+    issued_at: int
+    nonce: str
+    binding_id: str
+    consent: ConsentAcceptance
+    bundle_hash: str
+    raw_payload: dict[str, Any]
+
+    @property
+    def accepted_at(self) -> datetime:
+        return self.consent.accepted_at
+
+    @property
+    def consent_schema_version(self) -> int:
+        return self.consent.consent_schema_version
+
+    @property
+    def terms_version(self) -> str:
+        return self.consent.terms_version
+
+    @property
+    def privacy_version(self) -> str:
+        return self.consent.privacy_version
+
+    @property
+    def instagram_permissions_version(self) -> str:
+        return self.consent.instagram_permissions_version
+
+    @property
+    def age_confirmed(self) -> bool:
+        return self.consent.age_confirmed
+
+    @property
+    def terms_accepted(self) -> bool:
+        return self.consent.terms_accepted
+
+    @property
+    def privacy_accepted(self) -> bool:
+        return self.consent.privacy_accepted
+
+    @property
+    def consent_age(self) -> bool:
+        return self.consent.age_confirmed
+
+    @property
+    def consent_terms(self) -> bool:
+        return self.consent.terms_accepted
+
+    @property
+    def consent_privacy(self) -> bool:
+        return self.consent.privacy_accepted
+
+    @property
+    def instagram_permissions_accepted(self) -> bool:
+        return self.consent.instagram_permissions_accepted
+
+    @property
+    def consent_instagram(self) -> bool:
+        return self.consent.instagram_permissions_accepted
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -34,22 +135,51 @@ def _sign_state_payload(payload_bytes: bytes) -> bytes:
     return hmac.new(secret, payload_bytes, hashlib.sha256).digest()
 
 
-def generate_state() -> str:
-    """Generate a signed stateless CSRF state token."""
+def _json_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def generate_state(
+    consent: ConsentAcceptance | dict[str, Any] | None = None,
+    *,
+    binding_id: str | None = None,
+) -> str:
+    """Generate a signed consent handoff state token."""
+    if not config.INSTAGRAM_APP_SECRET:
+        raise ValueError("INSTAGRAM_APP_SECRET is required to sign OAuth state")
+    if consent is None:
+        raise ValueError("explicit consent is required to sign OAuth state")
+    if not is_valid_binding_id(binding_id):
+        raise ValueError("binding_id is required to sign OAuth state")
+
+    now = int(time.time())
     payload = {
-        "iat": int(time.time()),
+        "v": _STATE_VERSION,
+        "iat": now,
         "nonce": secrets.token_urlsafe(16),
+        "binding_id": binding_id,
     }
-    payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    payload.update(consent_payload(consent))
+    payload["bundle_hash"] = consent_bundle_hash(payload)
+    payload_bytes = _json_bytes(payload)
     signature = _sign_state_payload(payload_bytes)
     return f"{_b64url_encode(payload_bytes)}.{_b64url_encode(signature)}"
 
 
-def validate_state(state: str) -> bool:
-    """Validate a signed stateless CSRF state token."""
+def _parse_state_or_raise(
+    state: str,
+    *,
+    expected_binding_id: str | None,
+) -> ParsedConsentState:
+    """Validate and parse a signed consent handoff state token."""
     try:
         if not state or "." not in state:
-            return False
+            raise InvalidStateError("missing state")
 
         payload_part, signature_part = state.split(".", 1)
         payload_bytes = _b64url_decode(payload_part)
@@ -57,28 +187,113 @@ def validate_state(state: str) -> bool:
         expected_signature = _sign_state_payload(payload_bytes)
 
         if not hmac.compare_digest(received_signature, expected_signature):
-            return False
+            raise InvalidStateError("bad state signature")
 
         payload = json.loads(payload_bytes.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise InvalidStateError("state payload must be an object")
+        if set(payload) != CONSENT_STATE_KEYS:
+            raise InvalidStateError("state payload has unsupported fields")
+        version = payload.get("v")
+        if type(version) is not int or version != _STATE_VERSION:
+            raise InvalidStateError("unsupported state version")
+
         iat = payload.get("iat")
-        if not isinstance(iat, int):
-            return False
+        nonce = payload.get("nonce")
+        binding_id = payload.get("binding_id")
+        accepted_at = payload.get("accepted_at")
+        bundle_hash = payload.get("bundle_hash")
+        if type(iat) is not int:
+            raise InvalidStateError("state iat is required")
+        if not isinstance(nonce, str) or not nonce:
+            raise InvalidStateError("state nonce is required")
+        if not is_valid_binding_id(binding_id):
+            raise InvalidStateError("state binding_id is required")
+        try:
+            require_matching_binding(binding_id, expected_binding_id)
+        except ValueError as exc:
+            raise InvalidStateError("state browser binding mismatch") from exc
+        if not isinstance(accepted_at, str) or not accepted_at:
+            raise InvalidStateError("accepted_at is required")
+        if (
+            not isinstance(bundle_hash, str)
+            or len(bundle_hash) != 64
+            or any(ch not in "0123456789abcdef" for ch in bundle_hash)
+        ):
+            raise InvalidStateError("bundle_hash is required")
 
         now = int(time.time())
         if now - iat > _STATE_TTL_SECONDS:
-            return False
+            raise ExpiredStateError("state expired")
         if iat - now > _STATE_FUTURE_SKEW_SECONDS:
-            return False
+            raise InvalidStateError("state timestamp is in the future")
 
+        try:
+            accepted_dt = datetime.fromisoformat(accepted_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise InvalidStateError("accepted_at is invalid") from exc
+        if accepted_dt.tzinfo is None:
+            raise InvalidStateError("accepted_at timezone is required")
+        now_dt = datetime.fromtimestamp(now, timezone.utc)
+        if (accepted_dt - now_dt).total_seconds() > _STATE_FUTURE_SKEW_SECONDS:
+            raise InvalidStateError("accepted_at is in the future")
+
+        expected_hash = consent_bundle_hash(payload)
+        if not hmac.compare_digest(expected_hash, bundle_hash):
+            raise InvalidStateError("state consent hash mismatch")
+
+        try:
+            consent = ConsentAcceptance.from_mapping(payload)
+        except ValueError as exc:
+            raise InvalidStateError(str(exc)) from exc
+
+        return ParsedConsentState(
+            version=version,
+            issued_at=iat,
+            nonce=nonce,
+            binding_id=binding_id,
+            consent=consent,
+            bundle_hash=bundle_hash,
+            raw_payload=payload,
+        )
+    except StateError:
+        raise
+    except Exception as exc:
+        raise InvalidStateError("invalid state") from exc
+
+
+def parse_state(
+    state: str,
+    *,
+    expected_binding_id: str | None = None,
+) -> ParsedConsentState:
+    """Validate and parse a signed consent handoff state token."""
+    return _parse_state_or_raise(state, expected_binding_id=expected_binding_id)
+
+
+def validate_state(
+    state: str,
+    *,
+    expected_binding_id: str | None = None,
+) -> bool:
+    """Validate a signed consent handoff state token."""
+    try:
+        parse_state(state, expected_binding_id=expected_binding_id)
         return True
-    except Exception:
+    except StateError:
         return False
 
 
-def get_oauth_url(state: Optional[str] = None) -> str:
+def get_oauth_url(
+    state: str | None = None,
+    consent: ConsentAcceptance | None = None,
+    binding_id: str | None = None,
+) -> str:
     """Generate Instagram OAuth authorization URL."""
     if state is None:
-        state = generate_state()
+        if consent is None:
+            raise ValueError("explicit consent is required to build OAuth URL")
+        state = generate_state(consent, binding_id=binding_id)
 
     params = {
         "client_id": config.INSTAGRAM_APP_ID,

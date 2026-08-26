@@ -1,11 +1,8 @@
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
-
-from src.models import InstagramAccount, User
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -59,8 +56,10 @@ def login_patches(monkeypatch):
     def fake_init_db():
         calls["init_db"] += 1
 
-    def fake_get_oauth_url():
+    def fake_get_oauth_url(*, consent=None, binding_id=None):
         calls["oauth_url"] += 1
+        assert consent is not None
+        assert binding_id is not None
         return "https://instagram.example/oauth?next=/Login&state=a\"b&scope=x<y>"
 
     monkeypatch.setattr(database_module, "init_db", fake_init_db)
@@ -87,7 +86,7 @@ def _all_markdown(app):
 def _link_buttons(app):
     return [
         element.proto
-        for element in app.main
+        for element in app
         if type(element).__name__ == "UnknownElement"
         and getattr(element.proto, "url", "")
     ]
@@ -119,7 +118,7 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     html = _all_markdown(app)
 
     assert login_patches["calls"]["init_db"] == 1
-    assert login_patches["calls"]["oauth_url"] == 1
+    assert login_patches["calls"]["oauth_url"] == 0
     assert not app.title
     assert not app.error
     assert app.markdown[0].value.startswith("<style>")
@@ -145,14 +144,403 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert "Meta 공식 로그인 방식" in html
     assert "공식파트너" not in html
     assert "cl-login-page" in html
+    assert "반응을 읽고," in html
+    assert "선택의 기준을 만듭니다." in html
+    assert "반응을 읽고,<br>" not in html
+    assert "채널 데이터를 분석해 맞는 제품과 판매 방향을 제안합니다." in html
+    assert "연결된 채널의 콘텐츠와 반응 데이터를 분석해" not in html
     assert "Instagram으로 계속하기" in html
-    assert "href=\"https://instagram.example/oauth?next=/Login&amp;state=a&quot;b&amp;scope=x&lt;y&gt;\"" in html
-    assert 'target="_blank"' in html
-    assert 'rel="noopener noreferrer"' in html
+    assert 'href="/Login?step=consent"' in html
+    assert 'target="_self"' in html
+    assert "https://instagram.example/oauth" not in html
+    assert 'rel="noopener noreferrer"' not in html
     assert "이전으로" not in html
     assert "cl-back-link" not in html
     assert 'href="/"' not in html
-    assert 'href="/Privacy"' in html
+    assert 'href="/Privacy"' not in html
+
+
+def test_initial_login_page_primary_cta_routes_to_full_page_consent(login_patches):
+    app = _run_app()
+    html = _all_markdown(app)
+
+    assert 'href="/Login?step=consent"' in html
+    assert "https://instagram.example/oauth" not in html
+
+
+def test_configured_vercel_intro_cta_sets_browser_binding_first(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "production", raising=False)
+    for key, value in {
+        "SESSION_COOKIE_SECRET": "s" * 32,
+        "OAUTH_REDIRECT_URI": "https://preview.example/auth/callback",
+        "SUPABASE_KEY": "sb_secret_server",
+    }.items():
+        monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
+
+    app = _run_app()
+    html = _all_markdown(app)
+
+    assert 'href="/auth/instagram/start"' in html
+    assert 'href="/Login?step=consent"' not in html
+
+
+def test_consent_step_renders_full_page_terms_gate(login_patches):
+    app = _run_app({"step": "consent"})
+    html = _all_markdown(app)
+
+    labels = [checkbox.label for checkbox in app.checkbox]
+    detail_modal_ids = [
+        "cl-consent-modal-terms-accepted",
+        "cl-consent-modal-privacy-accepted",
+    ]
+    detail_trigger_ids = [
+        "cl-consent-trigger-terms-accepted",
+        "cl-consent-trigger-privacy-accepted",
+    ]
+    age_detail_modal_id = "cl-consent-modal-age-confirmed"
+    age_detail_trigger_id = "cl-consent-trigger-age-confirmed"
+
+    assert "cl-consent-title" in html
+    assert "st-key-cl-consent-shell" in html
+    assert '<div class="cl-brand-mark" role="img" aria-label="CelebLife">' in html
+    assert "CELEBLIFE ONBOARDING" in html
+    assert "max-width: 560px" in html
+    assert "필수 동의를 확인한 뒤 Instagram 연결을 진행합니다." in html
+    assert "동의 후 Instagram으로 계속하기" not in html
+    assert "필수 항목에 모두 동의합니다." in labels
+    assert "만 14세 이상입니다. (필수)" in labels
+    assert "서비스 이용약관에 동의합니다. (필수)" in labels
+    assert "개인정보 수집·이용에 동의합니다. (필수)" in labels
+    assert "Instagram 데이터 접근·분석에 동의합니다. (필수)" not in labels
+    assert len(labels) == 4
+    assert app.expander == []
+    assert all(f'href="#{modal_id}"' in html for modal_id in detail_modal_ids)
+    assert all(f'id="{modal_id}"' in html for modal_id in detail_modal_ids)
+    assert all(f'id="{trigger_id}"' in html for trigger_id in detail_trigger_ids)
+    assert all(f'href="#{trigger_id}"' in html for trigger_id in detail_trigger_ids)
+    assert html.count('aria-haspopup="dialog"') == 2
+    assert f'href="#{age_detail_modal_id}"' not in html
+    assert f'id="{age_detail_modal_id}"' not in html
+    assert f'id="{age_detail_trigger_id}"' not in html
+    assert f'href="#{age_detail_trigger_id}"' not in html
+    assert all(
+        f'aria-controls="{modal_id}"' in html for modal_id in detail_modal_ids
+    )
+    assert all(
+        f'aria-labelledby="{modal_id}-title"' in html
+        and f'id="{modal_id}-title"' in html
+        for modal_id in detail_modal_ids
+    )
+    assert all(
+        f'aria-describedby="{modal_id}-description"' in html
+        and f'id="{modal_id}-description"' in html
+        for modal_id in detail_modal_ids
+    )
+    assert html.count('class="cl-policy-modal__title"') == 2
+    normalized_button_labels = [button.label.replace(" ", "") for button in app.button]
+    assert normalized_button_labels.count("상세보기") == 0
+    assert html.count('class="cl-consent-detail-link"') == 2
+    assert "셀럽라이프는 만 14세 이상만 이용할 수 있습니다." not in html
+    assert "주식회사 꿈선생(이하 &quot;회사&quot;)은" in html
+    assert "Instagram 계정 연결 및 관리" in html
+    assert "cl-consent-page" in html
+    assert ".cl-login-page.cl-consent-page" in html
+    assert "position: relative !important" in html
+    assert "min-height: auto !important" in html
+    assert "--cl-consent-gutter: 20px" in html
+    assert "--cl-consent-gutter: 18px" in html
+    assert "--cl-consent-block-gap: 16px" in html
+    assert "--cl-consent-panel-bottom: 12px" in html
+    assert "--cl-consent-shell-gap: 4px" in html
+    assert "gap: var(--cl-consent-shell-gap) !important" in html
+    assert "var(--cl-consent-gutter)" in html
+    assert (
+        "padding: max(20px, env(safe-area-inset-top)) 0 "
+        "var(--cl-consent-panel-bottom) !important"
+        in html
+    )
+    assert (
+        "[data-testid=\"stMarkdownContainer\"]:has(.cl-consent-page)" in html
+    )
+    assert "margin-bottom: 0 !important" in html
+    assert "max-width: none !important" in html
+    assert (
+        ".cl-login-page.cl-consent-page .cl-form-card .cl-brand-mark"
+        in html
+    )
+    assert (
+        ".cl-login-page.cl-consent-page .cl-form-card .cl-eyebrow"
+        in html
+    )
+    assert html.count("display: block !important") >= 2
+    assert ".st-key-cl_consent_submit_disabled .stButton > button" in html
+    assert (
+        ".st-key-cl_consent_submit_link [data-testid=\"stLinkButton\"] > a"
+        in html
+    )
+    assert (
+        ".st-key-cl-consent-shell [class*=\"st-key-cl_consent_item_\"] "
+        ".stHorizontalBlock"
+        in html
+    )
+    assert "align-items: flex-start" in html
+    assert "flex-wrap: nowrap !important" in html
+    assert (
+        ".stHorizontalBlock > [data-testid=\"stColumn\"]:first-child"
+        in html
+    )
+    assert "flex: 1 1 auto !important" in html
+    assert "min-width: 0 !important" in html
+    assert (
+        ".stHorizontalBlock > [data-testid=\"stColumn\"]:last-child"
+        in html
+    )
+    assert "flex: 0 0 auto !important" in html
+    assert "min-width: auto !important" in html
+    assert (
+        ".st-key-cl-consent-shell .cl-consent-detail-link"
+        in html
+    )
+    assert "vertical_alignment=\"center\"" not in html
+    assert (
+        ".st-key-cl-consent-shell [data-testid=\"stLinkButton\"] > a"
+        not in html
+    )
+    assert "min-height: 44px" in html
+    assert "margin: 0 !important" in html
+    assert "line-height: 1.4 !important" in html
+    assert "line-height: 1.8 !important" in html
+    assert "line-height: 1.52" in html
+    assert "line-height: 1.54" in html
+    assert "margin-bottom: 0" in html
+    assert "box-sizing: border-box" in html
+    assert "padding: 0 !important" in html
+    assert (
+        "[class*=\"st-key-cl_consent_detail_\"] "
+        "[data-testid=\"stMarkdownContainer\"]"
+        in html
+    )
+    assert "[data-testid=\"stMarkdownContainer\"] p" in html
+    assert "justify-content: flex-end" in html
+    assert ".cl-policy-modal *" in html
+    assert "font-family: __CONSENT_FONT_STACK__ !important" not in html
+    assert "Material Symbols Rounded" in html
+    assert ".cl-policy-modal:target" in html
+    assert "width: min(100%, 640px)" in html
+    assert "max-height: min(82dvh, 760px)" in html
+    assert "max-height: 86dvh" in html
+    assert "overflow: hidden" in html
+    assert "overflow-y: auto" in html
+    assert "position: sticky" in html
+    assert "cl-policy-modal__footer" in html
+    assert "cl-policy-modal__close-button" in html
+    assert "확인했어요" in html
+    assert "margin-top: 12px" in html
+    assert "line-height: 1.86 !important" in html
+    assert "line-height: 1.54" in html
+    assert "line-height: 1.72" in html
+    assert "line-height: 1.58" in html
+    assert "cl-policy-modal__document-title" in html
+    assert "cl-policy-modal__metadata" in html
+    assert "cl-policy-modal__intro" in html
+    assert "cl-policy-modal__section-heading" in html
+    assert "cl-policy-modal__section-number" in html
+    assert "cl-policy-modal__subheading" in html
+    assert "cl-policy-modal__list-row" in html
+    assert "cl-policy-modal__paragraph" in html
+    assert '<span class="cl-policy-modal__section-number">1</span>' in html
+    assert '<span class="cl-policy-modal__section-number">11</span>' in html
+    assert '<span class="cl-policy-modal__section-number">부칙</span>' in html
+    assert '<p class="cl-policy-modal__subheading">회원 정보</p>' in html
+    assert '<li class="cl-policy-modal__list-row">이름</li>' in html
+    assert (
+        '<li class="cl-policy-modal__list-row">'
+        "Supabase: 데이터베이스 및 서비스 데이터 저장·관리</li>"
+        in html
+    )
+    assert "본 개인정보처리방침은 셀럽라이프 서비스 이용 과정에서" in html
+    assert "Instagram Access Token 등 OAuth 인증에 필요한 정보" in html
+    assert "Instagram 계정 연결 및 관리" in html
+    assert "셀럽라이프 개인정보처리방침" in html
+    assert "최종 업데이트: 2026년 8월 26일" in html
+    assert "사업자등록번호: 713-81-03266" in html
+    assert "이메일: dkssud374@gmail.com" in html
+    assert "본 개인정보처리방침은 2026년 8월 26일부터 시행합니다." in html
+    privacy_modal_html = html[
+        html.index('id="cl-consent-modal-privacy-accepted"') :
+    ]
+    assert (
+        privacy_modal_html.index("셀럽라이프 개인정보처리방침")
+        < privacy_modal_html.index("최종 업데이트: 2026년 8월 26일")
+        < privacy_modal_html.index("수집 및 처리하는 정보")
+        < privacy_modal_html.index("개인정보처리방침의 변경")
+        < privacy_modal_html.index("부칙")
+    )
+    assert "개인정보 처리방침 전체 보기" not in html
+    assert 'href="/Privacy"' not in html
+
+
+def test_terms_policy_renderer_supports_pdf_plaintext_contract():
+    import src.ui.celeblife_login as login_ui
+
+    body = """셀럽라이프 인플루언서 서비스 이용약관 | v1.2
+셀럽라이프와 인플루언서의 서비스 이용 조건을 정합니다.
+운영 서비스: 셀럽라이프
+운영 사업자: 주식회사 꿈선생
+작성 기준일: 2026년 8월 26일
+
+중요 조항 요약
+소싱 제품 보호
+회사가 먼저 발굴한 제품은 90일 동안 원칙적으로 셀럽라이프를 통해 진행합니다.
+기존 일정 예외
+소싱 전에 이미 해당 월 진행이 확정된 건은 예외입니다.
+선행 독점·전속 예외
+유효한 독점·전속 계약이 이미 체결된 경우 제한 범위에 한해 예외가 적용됩니다.
+단순 제안은 예외 아님
+과거 제안이나 샘플 수령만 한 상태는 기존 확정으로 보지 않습니다.
+노쇼·일방 취소
+반복 노쇼는 서비스 이용 제한 사유가 될 수 있습니다.
+우회 거래 손해배상
+회사 밖에서 수수료를 회피한 경우 손해배상을 청구할 수 있습니다.
+※ 위 요약은 이해를 돕기 위한 안내이며, 구체적인 권리·의무는 아래 약관 본문과 개별 캠페인 조건에 따릅니다.
+
+제1조 (목적)
+본 약관은 셀럽라이프 인플루언서 서비스의 이용 조건을 정합니다.
+① 회원은 본 약관을 확인하고 동의합니다.
+
+제2조 (서비스의 범위)
+회사는 Instagram 데이터 분석 및 상품 추천 기능을 제공합니다.
+1. 회원의 채널 데이터에 기초한 상품 탐색·추천
+
+별표 1 | 콘텐츠 인정 기준
+구분 | 처리 원칙 | 산정 기준
+게시물|원본 링크와 계정 권한이 확인되는 경우|인정
+릴스|성과 데이터 증빙이 있는 경우|증빙 시 인정
+광고성 게시물|권한 또는 출처가 확인되지 않는 경우|불인정
+
+별표 2 | 증빙 자료
+상황 | 기존 확정 인정 | 처리
+계정 캡처|본인 계정임을 확인할 수 있는 자료|인정
+
+부칙
+본 약관은 2026년 8월 26일부터 시행합니다."""
+
+    html = login_ui._consent_detail_body_html("terms_accepted", body)
+
+    assert "cl-policy-modal__document--terms" in html
+    assert "cl-policy-modal__document-title" in html
+    assert "cl-policy-modal__document-subtitle" in html
+    assert html.count("cl-policy-modal__metadata-row") == 3
+    assert "cl-policy-modal__summary-grid" in html
+    assert html.count("cl-policy-modal__summary-card") == 6
+    assert "cl-policy-modal__section--article" in html
+    assert "cl-policy-modal__section--appendix" in html
+    assert "cl-policy-modal__table-list" in html
+    assert html.count("cl-policy-modal__table-row") == 4
+    assert html.count("cl-policy-modal__table-cell") == 12
+    assert html.count("cl-policy-modal__status-badge") == 4
+    assert "cl-policy-modal__note" in html
+    assert "<table" not in html
+    assert "구분 | 처리 원칙 | 산정 기준" not in html
+    assert "상황 | 기존 확정 인정 | 처리" not in html
+    assert '<span class="cl-policy-modal__table-label">구분</span>' in html
+    assert '<span class="cl-policy-modal__table-label">처리 원칙</span>' in html
+    assert '<span class="cl-policy-modal__table-label">산정 기준</span>' in html
+    assert '<span class="cl-policy-modal__table-label">상황</span>' in html
+    assert '<span class="cl-policy-modal__table-label">기존 확정 인정</span>' in html
+    assert '<span class="cl-policy-modal__table-label">처리</span>' in html
+    assert '<p class="cl-policy-modal__paragraph">① 회원은 본 약관을 확인하고 동의합니다.</p>' in html
+    assert '<li class="cl-policy-modal__list-row">1. 회원의 채널 데이터에 기초한 상품 탐색·추천</li>' in html
+    assert "페이지 1" not in html
+    assert "셀럽라이프 인플루언서 서비스 이용약관 | v1.2" in html
+    assert "소싱 제품 보호" in html
+    assert "제1조" in html
+    assert "별표 1" in html
+    assert "부칙" in html
+    assert (
+        html.index("셀럽라이프 인플루언서 서비스 이용약관 | v1.2")
+        < html.index("운영 서비스")
+        < html.index("중요 조항 요약")
+        < html.index("제1조")
+        < html.index("별표 1")
+        < html.index("별표 2")
+        < html.index("부칙")
+    )
+
+
+def test_terms_policy_renderer_escapes_pdf_plaintext_values():
+    import src.ui.celeblife_login as login_ui
+
+    body = """셀럽라이프 인플루언서 서비스 이용약관 | v1.2
+<script>alert(1)</script>
+운영 서비스: 셀럽라이프 <서비스>
+운영 사업자: 주식회사 꿈선생
+작성 기준일: 2026년 8월 26일
+중요 조항 요약
+위험: <img src=x onerror=alert(1)>
+제1조 (목적)
+본문 <b>태그</b>는 텍스트로 보입니다.
+별표 1 | 기준
+항목|<기준>|인정
+부칙
+끝"""
+
+    html = login_ui._consent_detail_body_html("terms_accepted", body)
+
+    assert "<script>" not in html
+    assert "<img" not in html
+    assert "<b>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "셀럽라이프 &lt;서비스&gt;" in html
+    assert "&lt;img src=x onerror=alert(1)&gt;" in html
+    assert "&lt;기준&gt;" in html
+
+
+def test_consent_step_does_not_start_oauth_before_required_agreements(
+    login_patches,
+):
+    app = _run_app({"step": "consent"})
+    html = _all_markdown(app)
+
+    assert login_patches["calls"]["oauth_url"] == 0
+    assert "https://instagram.example/oauth" not in html
+    assert any(
+        button.label == "동의하고 Instagram으로 계속하기" for button in app.button
+    )
+
+
+def test_consent_step_back_action_returns_to_intro_and_clears_state(login_patches):
+    app = _run_app({"step": "consent"})
+    html = _all_markdown(app)
+
+    assert any(button.label == "이전으로" for button in app.button)
+    assert 'href="/Login"' not in html
+    assert "state=" not in html
+
+    app.session_state["cl_consent_all"] = True
+    app.session_state["cl_consent_age_confirmed"] = True
+    app.session_state["cl_consent_terms_accepted"] = True
+    app.session_state["cl_consent_privacy_accepted"] = True
+    app.session_state["cl_consent_instagram_permissions_accepted"] = True
+    app.session_state["cl_oauth_handoff_url"] = "https://instagram.example/oauth?state=cached"
+    app.button(key="cl_consent_back").click().run()
+
+    assert app.query_params == {}
+    assert app.session_state["cl_consent_all"] is False
+    assert app.session_state["cl_consent_age_confirmed"] is False
+    assert app.session_state["cl_consent_terms_accepted"] is False
+    assert app.session_state["cl_consent_privacy_accepted"] is False
+    assert app.session_state["cl_consent_instagram_permissions_accepted"] is False
+    assert "cl_oauth_handoff_url" not in app.session_state
 
 
 def test_preview_missing_config_login_renders_disabled_ui_without_oauth_or_db(
@@ -208,7 +596,6 @@ def test_preview_missing_config_login_renders_disabled_ui_without_oauth_or_db(
 
     app = _run_app({"code": "auth-code", "state": "state-value"})
     html = _all_markdown(app)
-    cta = _disabled_instagram_cta(html)
 
     assert not app.exception
     assert calls["init_db"] == 0
@@ -217,14 +604,141 @@ def test_preview_missing_config_login_renders_disabled_ui_without_oauth_or_db(
     assert "cl-login-page" in html
     assert app.error == []
     assert app.query_params == {}
-    assert 'aria-disabled="true"' in cta
-    assert "disabled" in cta
-    assert "href=" not in cta
-    assert "javascript:" not in cta
-    assert 'href="#"' not in cta
+    assert 'href="/Login?step=consent"' in html
+    assert "javascript:" not in html
+    assert 'href="#"' not in html
 
 
-def test_render_login_page_disables_cta_when_oauth_url_is_missing(monkeypatch):
+def test_preview_missing_config_consent_step_renders_without_oauth_or_db(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+    import src.database as database_module
+    import src.oauth as oauth_module
+
+    calls = login_patches["calls"]
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    for key in (
+        "INSTAGRAM_APP_ID",
+        "INSTAGRAM_APP_SECRET",
+        "OAUTH_REDIRECT_URI",
+        "CONTACT_EMAIL",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+    ):
+        monkeypatch.setattr(config_module.Config, key, "", raising=False)
+        monkeypatch.setattr(config_module.config, key, "", raising=False)
+
+    monkeypatch.setattr(
+        database_module,
+        "create_client",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview consent must not create Supabase client")
+        ),
+    )
+    monkeypatch.setattr(
+        oauth_module,
+        "get_oauth_url",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("credentialless preview consent must not generate OAuth URL")
+        ),
+    )
+
+    app = _run_app({"step": "consent"})
+    html = _all_markdown(app)
+
+    assert not app.exception
+    assert calls["init_db"] == 0
+    assert calls["oauth_url"] == 0
+    assert "cl-consent-title" in html
+    assert any(
+        button.label == "동의하고 Instagram으로 계속하기" for button in app.button
+    )
+    assert "https://instagram.example/oauth" not in html
+    assert dict(app.query_params) == {"step": ["consent"]}
+
+
+def test_preview_missing_config_consent_step_links_to_preview_handoff(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    for key in (
+        "INSTAGRAM_APP_ID",
+        "INSTAGRAM_APP_SECRET",
+        "OAUTH_REDIRECT_URI",
+        "CONTACT_EMAIL",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+    ):
+        monkeypatch.setattr(config_module.Config, key, "", raising=False)
+        monkeypatch.setattr(config_module.config, key, "", raising=False)
+
+    app = _run_app({"step": "consent"})
+    for checkbox in app.checkbox:
+        checkbox.check()
+    app = app.run()
+
+    assert any(
+        button.url == "/Login?step=instagram-preview"
+        for button in _link_buttons(app)
+    )
+
+
+def test_preview_missing_config_instagram_preview_step_renders_mock_handoff(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.Config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(config_module.config, "PREVIEW_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(config_module.config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    for key in (
+        "INSTAGRAM_APP_ID",
+        "INSTAGRAM_APP_SECRET",
+        "OAUTH_REDIRECT_URI",
+        "CONTACT_EMAIL",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+    ):
+        monkeypatch.setattr(config_module.Config, key, "", raising=False)
+        monkeypatch.setattr(config_module.config, key, "", raising=False)
+
+    app = _run_app({"step": "instagram-preview"})
+    html = _all_markdown(app)
+
+    assert not app.exception
+    assert "Instagram 로그인 화면 미리보기" in html
+    assert "실제 인증과 권한 화면은 Meta가 호스팅합니다." in html
+    assert "동의 화면으로 돌아가기" in html
+    assert 'href="/Login?step=consent"' in html
+
+
+def test_render_login_page_routes_to_consent_when_oauth_url_is_missing(monkeypatch):
     import src.ui.celeblife_login as login_ui
 
     rendered = []
@@ -240,12 +754,30 @@ def test_render_login_page_disables_cta_when_oauth_url_is_missing(monkeypatch):
 
     assert len(rendered) == 1
     assert rendered[0]["unsafe"] is True
-    cta = _disabled_instagram_cta(rendered[0]["body"])
-    assert 'aria-disabled="true"' in cta
-    assert "disabled" in cta
-    assert "href=" not in cta
-    assert "javascript:" not in cta
-    assert 'href="#"' not in cta
+    html = rendered[0]["body"]
+    assert 'href="/Login?step=consent"' in html
+    assert "https://instagram.example/oauth" not in html
+
+
+def test_render_login_page_never_uses_supplied_oauth_url(monkeypatch):
+    import src.ui.celeblife_login as login_ui
+
+    rendered = []
+    monkeypatch.setattr(
+        login_ui.st,
+        "markdown",
+        lambda body, unsafe_allow_html=False: rendered.append(body),
+    )
+
+    login_ui.render_login_page(
+        oauth_url="https://instagram.example/oauth?state=must-not-leak",
+        continue_url="https://attacker.example/skip-consent",
+    )
+
+    html = rendered[0]
+    assert 'href="/Login?step=consent"' in html
+    assert "https://instagram.example/oauth" not in html
+    assert "https://attacker.example" not in html
 
 
 @pytest.mark.parametrize(
@@ -417,71 +949,28 @@ def test_login_styles_outrank_streamlit_theme(login_patches):
 
 
 def test_success_callback_preserves_token_save_session_and_clears_query(login_patches, monkeypatch):
-    oauth_module = login_patches["oauth"]
-    database_module = login_patches["database"]
+    import src.oauth_callback_service as callback_service
+
     calls = login_patches["calls"]
 
+    def fake_complete_instagram_login(code, state, *, expected_binding_id=None):
+        calls["complete_oauth_flow"].append((code, state))
+        return callback_service.OnboardingResult(
+            user_id=42,
+            instagram_id="ig-123",
+            instagram_username="celeb_user",
+            state_nonce="nonce-123",
+        )
+
     monkeypatch.setattr(
-        oauth_module,
-        "validate_state",
-        lambda state: calls["validate_state"].append(state) or True,
+        callback_service,
+        "complete_instagram_login",
+        fake_complete_instagram_login,
     )
-
-    expires_at = datetime(2026, 7, 24, tzinfo=timezone.utc)
-
-    def fake_complete_oauth_flow(code):
-        calls["complete_oauth_flow"].append(code)
-        return {
-            "success": True,
-            "user_token": "stored-user-token",
-            "user_token_expires": expires_at,
-            "instagram_account": InstagramAccount(
-                id="ig-123",
-                username="celeb_user",
-                name="Celeb User",
-                followers_count=1234,
-                media_count=56,
-            ),
-        }
-
-    def fake_create_or_update_user(instagram_id, instagram_username):
-        calls["users"].append(
-            {
-                "instagram_id": instagram_id,
-                "instagram_username": instagram_username,
-            }
-        )
-        return User(id=42, instagram_id=instagram_id, instagram_username=instagram_username)
-
-    def fake_save_token(user_id, token_type, access_token, expires_at=None):
-        calls["tokens"].append(
-            {
-                "user_id": user_id,
-                "token_type": token_type,
-                "access_token": access_token,
-                "expires_at": expires_at,
-            }
-        )
-
-    monkeypatch.setattr(oauth_module, "complete_oauth_flow", fake_complete_oauth_flow)
-    monkeypatch.setattr(database_module, "create_or_update_user", fake_create_or_update_user)
-    monkeypatch.setattr(database_module, "save_token", fake_save_token)
 
     app = _run_app({"code": "auth-code", "state": "valid-state"})
 
-    assert calls["validate_state"] == ["valid-state"]
-    assert calls["complete_oauth_flow"] == ["auth-code"]
-    assert calls["users"] == [
-        {"instagram_id": "ig-123", "instagram_username": "celeb_user"}
-    ]
-    assert calls["tokens"] == [
-        {
-            "user_id": 42,
-            "token_type": "user",
-            "access_token": "stored-user-token",
-            "expires_at": expires_at,
-        }
-    ]
+    assert calls["complete_oauth_flow"] == [("auth-code", "valid-state")]
     assert app.session_state["user_id"] == 42
     assert app.session_state["instagram_username"] == "celeb_user"
     assert app.query_params == {}
@@ -493,7 +982,6 @@ def test_success_callback_preserves_token_save_session_and_clears_query(login_pa
 def test_vercel_login_query_callback_does_not_exchange_token(login_patches, monkeypatch):
     import src.config as config_module
 
-    oauth_module = login_patches["oauth"]
     calls = login_patches["calls"]
 
     monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
@@ -506,22 +994,115 @@ def test_vercel_login_query_callback_does_not_exchange_token(login_patches, monk
         monkeypatch.setattr(config_module.Config, key, value, raising=False)
         monkeypatch.setattr(config_module.config, key, value, raising=False)
     monkeypatch.setattr(
-        oauth_module,
-        "validate_state",
-        lambda state: (_ for _ in ()).throw(
-            AssertionError(f"state validation should not run on Vercel /Login: {state}")
+        config_module.Config,
+        "SUPABASE_PREVIEW_PROJECT_REF",
+        "previewref",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "SUPABASE_PRODUCTION_PROJECT_REF",
+        "prodref",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "SUPABASE_URL",
+        "https://previewref.supabase.co",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "SUPABASE_PREVIEW_PROJECT_REF",
+        "previewref",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "SUPABASE_PRODUCTION_PROJECT_REF",
+        "prodref",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "SUPABASE_URL",
+        "https://previewref.supabase.co",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "CONTACT_EMAIL",
+        "reviewer@example.com",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "INSTAGRAM_APP_ID",
+        "app-id",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "INSTAGRAM_APP_SECRET",
+        "app-secret",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "CONTACT_EMAIL",
+        "reviewer@example.com",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "INSTAGRAM_APP_ID",
+        "app-id",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "INSTAGRAM_APP_SECRET",
+        "app-secret",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "VERCEL_ENV",
+        "preview",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "VERCEL_ENV",
+        "preview",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "validate_runtime",
+        lambda: [],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "validate_runtime",
+        classmethod(lambda cls: []),
+        raising=False,
+    )
+    import src.oauth_callback_service as callback_service
+
+    monkeypatch.setattr(
+        callback_service,
+        "complete_instagram_login",
+        lambda code, state, *, expected_binding_id=None: (_ for _ in ()).throw(
+            AssertionError("shared callback should not run on Vercel /Login")
         ),
     )
-
-    def fail_complete(code):
-        raise AssertionError(f"token exchange should not run on Vercel /Login: {code}")
-
-    monkeypatch.setattr(oauth_module, "complete_oauth_flow", fail_complete)
 
     app = _run_app({"code": "auth-code", "state": "valid-state"})
 
     assert calls["complete_oauth_flow"] == []
-    assert calls["oauth_url"] == 1
+    assert calls["oauth_url"] == 0
     assert app.query_params == {}
     assert "로그인을 완료하지 못했습니다" in app.error[0].value
 
@@ -591,34 +1172,49 @@ def test_logged_in_vercel_login_page_links_asgi_logout(login_patches, monkeypatc
 
 
 def test_invalid_state_does_not_exchange_token_and_clears_query(login_patches, monkeypatch):
-    oauth_module = login_patches["oauth"]
+    import src.oauth_callback_service as callback_service
+
     calls = login_patches["calls"]
 
     monkeypatch.setattr(
-        oauth_module,
-        "validate_state",
-        lambda state: calls["validate_state"].append(state) or False,
+        callback_service,
+        "complete_instagram_login",
+        lambda code, state, *, expected_binding_id=None: (_ for _ in ()).throw(
+            callback_service.StateError("invalid_state")
+        ),
     )
-
-    def fail_complete(code):
-        raise AssertionError(f"Token exchange should not run for invalid state: {code}")
-
-    monkeypatch.setattr(oauth_module, "complete_oauth_flow", fail_complete)
 
     app = _run_app({"code": "auth-code", "state": "bad-state"})
 
-    assert calls["validate_state"] == ["bad-state"]
     assert calls["complete_oauth_flow"] == []
-    assert calls["oauth_url"] == 1
+    assert calls["oauth_url"] == 0
     assert app.query_params == {}
-    assert "세션이 유효하지 않거나 만료되었습니다" in app.error[0].value
+    assert "세션이 유효하지 않습니다" in app.error[0].value
     link_buttons = _link_buttons(app)
     assert len(link_buttons) == 1
-    assert link_buttons[0].label == "🔗 Instagram으로 다시 로그인"
-    assert (
-        link_buttons[0].url
-        == "https://instagram.example/oauth?next=/Login&state=a\"b&scope=x<y>"
+    assert link_buttons[0].label == "다시 동의하고 연결하기"
+    assert link_buttons[0].url == "/Login?step=consent"
+
+
+def test_persistence_failure_uses_safe_retry_message(login_patches, monkeypatch):
+    import src.oauth_callback_service as callback_service
+
+    monkeypatch.setattr(
+        callback_service,
+        "complete_instagram_login",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            callback_service.OnboardingPersistenceError("sensitive database detail")
+        ),
     )
+
+    app = _run_app({"code": "auth-code", "state": "valid-state"})
+
+    assert app.query_params == {}
+    assert app.error[0].value == "동의 내역을 저장하지 못했습니다. 다시 시도해 주세요."
+    assert "sensitive database detail" not in _all_markdown(app)
+    link_buttons = _link_buttons(app)
+    assert len(link_buttons) == 1
+    assert link_buttons[0].url == "/Login?step=consent"
 
 
 def test_user_denied_error_shows_retry_url_and_clears_query(login_patches):
@@ -632,14 +1228,11 @@ def test_user_denied_error_shows_retry_url_and_clears_query(login_patches):
         }
     )
 
-    assert calls["oauth_url"] == 1
+    assert calls["oauth_url"] == 0
     assert app.query_params == {}
     assert app.warning[0].value == "권한 요청이 거부되었습니다."
     assert "instagram_business_manage_insights" in _all_markdown(app)
     link_buttons = _link_buttons(app)
     assert len(link_buttons) == 1
-    assert link_buttons[0].label == "🔗 다시 시도"
-    assert (
-        link_buttons[0].url
-        == "https://instagram.example/oauth?next=/Login&state=a\"b&scope=x<y>"
-    )
+    assert link_buttons[0].label == "다시 동의하고 연결하기"
+    assert link_buttons[0].url == "/Login?step=consent"

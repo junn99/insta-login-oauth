@@ -1,13 +1,18 @@
+import base64
+import json
+from datetime import datetime, timedelta, timezone
 from importlib import import_module, reload
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from requests import HTTPError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PRIVACY_PAGE = PROJECT_ROOT / "pages" / "4_🔒_Privacy.py"
 DELETION_PAGE = PROJECT_ROOT / "pages" / "5_🗑️_Data-Deletion.py"
+BINDING_ID = "browser-binding-id-1234567890"
 
 
 def _read_text(path: Path) -> str:
@@ -43,6 +48,27 @@ class _MockResponse:
             raise HTTPError(f"HTTP {self.status_code}")
 
 
+def _accepted_consent_payload() -> dict:
+    return {
+        "accepted_at": "2026-08-26T03:00:00+00:00",
+        "age_confirmed": True,
+        "terms_accepted": True,
+        "privacy_accepted": True,
+        "instagram_permissions_accepted": True,
+        "terms_version": "influencer-v1.2-2026-08-26",
+        "privacy_version": "preview-2026-08-26-privacy-v3",
+        "instagram_permissions_version": "preview-2026-08-26",
+    }
+
+
+def _state_with_payload(oauth_module, payload: dict) -> str:
+    payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    signature = oauth_module._sign_state_payload(payload_bytes)
+    encoded_payload = base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode("ascii")
+    encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+    return f"{encoded_payload}.{encoded_signature}"
+
+
 def test_contact_email_placeholders():
     privacy = _read_text(PRIVACY_PAGE)
     deletion = _read_text(DELETION_PAGE)
@@ -61,8 +87,11 @@ def test_privacy_no_encryption_overclaim():
 def test_oauth_state_signing_and_tamper(monkeypatch):
     oauth_module, _ = _reload_oauth_with_env(monkeypatch)
 
-    state = oauth_module.generate_state()
-    assert oauth_module.validate_state(state)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    assert oauth_module.validate_state(state, expected_binding_id=BINDING_ID)
 
     payload_part, signature_part = state.split(".", 1)
     replacement = "A" if payload_part[0] != "A" else "B"
@@ -72,27 +101,199 @@ def test_oauth_state_signing_and_tamper(monkeypatch):
     assert not oauth_module.validate_state(tampered_state)
 
 
+def test_oauth_state_requires_explicit_consent(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+
+    with pytest.raises(ValueError, match="explicit consent"):
+        oauth_module.generate_state()
+
+    with pytest.raises(ValueError, match="explicit consent"):
+        oauth_module.get_oauth_url()
+
+
 def test_oauth_state_ttl_expiry(monkeypatch):
     oauth_module, _ = _reload_oauth_with_env(monkeypatch)
 
     base_time = 1_700_000_000
     monkeypatch.setattr(oauth_module.time, "time", lambda: base_time)
 
-    state = oauth_module.generate_state()
-    assert oauth_module.validate_state(state)
+    payload = _accepted_consent_payload()
+    payload["accepted_at"] = datetime.fromtimestamp(
+        base_time,
+        timezone.utc,
+    ).isoformat()
+    state = oauth_module.generate_state(consent=payload, binding_id=BINDING_ID)
+    assert oauth_module.validate_state(state, expected_binding_id=BINDING_ID)
 
     monkeypatch.setattr(
         oauth_module.time,
         "time",
         lambda: base_time + oauth_module._STATE_TTL_SECONDS + 1,
     )
-    assert not oauth_module.validate_state(state)
+    assert not oauth_module.validate_state(state, expected_binding_id=BINDING_ID)
+
+
+def test_parse_state_returns_typed_consent_acceptance(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    payload = _accepted_consent_payload()
+
+    state = oauth_module.generate_state(consent=payload, binding_id=BINDING_ID)
+    parsed = oauth_module.parse_state(state, expected_binding_id=BINDING_ID)
+
+    assert parsed.nonce
+    assert parsed.binding_id == BINDING_ID
+    assert parsed.accepted_at == datetime(2026, 8, 26, 3, 0, tzinfo=timezone.utc)
+    assert parsed.age_confirmed is True
+    assert parsed.terms_accepted is True
+    assert parsed.privacy_accepted is True
+    assert parsed.instagram_permissions_accepted is True
+    assert parsed.terms_version == "influencer-v1.2-2026-08-26"
+    assert parsed.privacy_version == "preview-2026-08-26-privacy-v3"
+    assert parsed.instagram_permissions_version == "preview-2026-08-26"
+
+
+def test_parse_state_rejects_missing_required_consent(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    payload_part, _signature_part = state.split(".", 1)
+    padding = "=" * (-len(payload_part) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + padding))
+    payload["instagram_permissions_accepted"] = False
+    payload["bundle_hash"] = oauth_module.consent_bundle_hash(payload)
+    state = _state_with_payload(oauth_module, payload)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(state, expected_binding_id=BINDING_ID)
+    assert oauth_module.validate_state(state, expected_binding_id=BINDING_ID) is False
+
+
+def test_parse_state_rejects_wrong_consent_version(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    payload_part, _signature_part = state.split(".", 1)
+    padding = "=" * (-len(payload_part) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + padding))
+    payload["instagram_permissions_version"] = "preview-2026-08-25"
+    payload["bundle_hash"] = oauth_module.consent_bundle_hash(payload)
+    state = _state_with_payload(oauth_module, payload)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(state, expected_binding_id=BINDING_ID)
+    assert oauth_module.validate_state(state, expected_binding_id=BINDING_ID) is False
+
+
+def test_parse_state_rejects_future_accepted_at(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    base_time = datetime(2026, 8, 26, 3, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(oauth_module.time, "time", lambda: int(base_time.timestamp()))
+    payload = _accepted_consent_payload()
+    payload["accepted_at"] = (base_time + timedelta(seconds=61)).isoformat()
+
+    state = oauth_module.generate_state(consent=payload, binding_id=BINDING_ID)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(state, expected_binding_id=BINDING_ID)
+    assert oauth_module.validate_state(state, expected_binding_id=BINDING_ID) is False
+
+
+def test_parse_state_rejects_tampered_bundle_hash(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    payload_part, signature_part = state.split(".", 1)
+    padding = "=" * (-len(payload_part) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + padding))
+    payload["bundle_hash"] = "0" * 64
+    tampered_state = _state_with_payload(oauth_module, payload)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(tampered_state, expected_binding_id=BINDING_ID)
+    assert (
+        oauth_module.validate_state(tampered_state, expected_binding_id=BINDING_ID)
+        is False
+    )
+
+
+def test_parse_state_rejects_extra_or_legacy_consent_fields(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    payload_part, _signature_part = state.split(".", 1)
+    padding = "=" * (-len(payload_part) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + padding))
+    payload["permissions_accepted"] = True
+    payload["bundle_hash"] = oauth_module.consent_bundle_hash(payload)
+    legacy_state = _state_with_payload(oauth_module, payload)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(legacy_state, expected_binding_id=BINDING_ID)
+    assert (
+        oauth_module.validate_state(legacy_state, expected_binding_id=BINDING_ID)
+        is False
+    )
+
+
+def test_generate_state_ignores_caller_transport_fields(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    payload = _accepted_consent_payload()
+    payload.update(
+        {
+            "v": True,
+            "iat": 1,
+            "nonce": "caller-controlled",
+            "binding_id": "caller-controlled-binding-id",
+        }
+    )
+
+    state = oauth_module.generate_state(consent=payload, binding_id=BINDING_ID)
+    parsed = oauth_module.parse_state(state, expected_binding_id=BINDING_ID)
+
+    assert parsed.version == 1
+    assert parsed.issued_at != 1
+    assert parsed.nonce != "caller-controlled"
+    assert parsed.binding_id == BINDING_ID
+    assert parsed.binding_id != "caller-controlled-binding-id"
+
+
+@pytest.mark.parametrize(("field", "value"), [("v", True), ("iat", True)])
+def test_parse_state_rejects_boolean_integer_fields(monkeypatch, field, value):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+    payload_part, _signature_part = state.split(".", 1)
+    padding = "=" * (-len(payload_part) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(payload_part + padding))
+    payload[field] = value
+    payload["bundle_hash"] = oauth_module.consent_bundle_hash(payload)
+    invalid_state = _state_with_payload(oauth_module, payload)
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(invalid_state, expected_binding_id=BINDING_ID)
+    assert (
+        oauth_module.validate_state(invalid_state, expected_binding_id=BINDING_ID)
+        is False
+    )
 
 
 def test_oauth_url_contains_scopes_and_redirect_uri(monkeypatch):
     oauth_module, app_config = _reload_oauth_with_env(monkeypatch)
 
-    oauth_url = oauth_module.get_oauth_url(state="fixed-state")
+    oauth_url = oauth_module.get_oauth_url(
+        consent=oauth_module.ConsentAcceptance.accepted_now(),
+        binding_id=BINDING_ID,
+    )
     query = parse_qs(urlparse(oauth_url).query)
 
     required_scopes = {
@@ -105,6 +306,31 @@ def test_oauth_url_contains_scopes_and_redirect_uri(monkeypatch):
     assert query["redirect_uri"][0] == app_config.OAUTH_REDIRECT_URI
     assert query["redirect_uri"][0] == "https://example.com/oauth/callback"
     assert oauth_url.startswith("https://www.instagram.com/oauth/authorize")
+
+
+def test_parse_state_rejects_missing_or_mismatched_browser_binding(monkeypatch):
+    oauth_module, _ = _reload_oauth_with_env(monkeypatch)
+    state = oauth_module.generate_state(
+        consent=_accepted_consent_payload(),
+        binding_id=BINDING_ID,
+    )
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(state)
+    assert oauth_module.validate_state(state) is False
+
+    with pytest.raises(oauth_module.StateError):
+        oauth_module.parse_state(
+            state,
+            expected_binding_id="different-browser-binding-id-123",
+        )
+    assert (
+        oauth_module.validate_state(
+            state,
+            expected_binding_id="different-browser-binding-id-123",
+        )
+        is False
+    )
 
 
 def test_complete_oauth_flow_returns_user_id(monkeypatch):

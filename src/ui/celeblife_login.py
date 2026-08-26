@@ -34,11 +34,14 @@ from __future__ import annotations
 
 import base64
 import html
+import re
 import textwrap
 from pathlib import Path
 from string import Template
 
 import streamlit as st
+
+from src.consent import CONSENT_ITEMS, all_required_accepted
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -976,16 +979,24 @@ def render_login_page(
     back_url: str = "/",
     privacy_url: str = "/Privacy",
     oauth_disabled: bool = False,
+    continue_url: str | None = "/Login?step=consent",
 ) -> None:
     """Render the full-screen CelebLife Instagram OAuth entry page."""
 
     _ = back_url  # Kept for callers; the login screen no longer renders a back action.
-    oauth_disabled = oauth_disabled or not oauth_url
+    # The entry CTA is intentionally local. Even if an older caller still passes
+    # an OAuth URL, the consent screen must remain the only route to Instagram.
+    _ = oauth_url
+    cta_url = (
+        "/auth/instagram/start"
+        if continue_url == "/auth/instagram/start"
+        else "/Login?step=consent"
+    )
     logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
     symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
 
-    safe_oauth_url = html.escape(oauth_url or "", quote=True)
-    safe_privacy_url = html.escape(privacy_url, quote=True)
+    safe_cta_url = html.escape(cta_url or "", quote=True)
+    _ = privacy_url
 
     styles = _STYLE_TEMPLATE.substitute(
         logo_uri=logo_uri,
@@ -1046,13 +1057,10 @@ def render_login_page(
           <div>
             <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
             <p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">
-              인스타그램에 로그인하고<br>
-              셀럽라이프와 연결해 주세요
+              반응을 읽고, 선택의 기준을 만듭니다.
             </p>
             <p class="cl-lead">
-              연결된 채널의 콘텐츠와 반응 데이터를 분석해 셀럽님의 팬덤에 가장 잘 맞는
-              제품과 판매 전략을 설계합니다. 명시적인 동의 없이 어떠한 작업도
-              진행하지 않아요.
+              채널 데이터를 분석해 맞는 제품과 판매 방향을 제안합니다.
             </p>
           </div>
 
@@ -1069,11 +1077,7 @@ def render_login_page(
           </div>
 
           <div class="cl-actions">
-            {_instagram_cta(safe_oauth_url, oauth_disabled=oauth_disabled)}
-
-            <a class="cl-privacy-link" href="{safe_privacy_url}" target="_self">
-              개인정보 및 권한 안내
-            </a>
+            {_instagram_cta(safe_cta_url, oauth_disabled=oauth_disabled)}
           </div>
 
           <div class="cl-card-footer">
@@ -1089,6 +1093,1331 @@ def render_login_page(
 
     st.markdown(_compact_html(styles + markup), unsafe_allow_html=True)
 
+
+def render_instagram_preview_page(*, back_url: str = "/Login?step=consent") -> None:
+    """Render a Preview-only mock of the next Instagram handoff screen."""
+
+    logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
+    symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
+    styles = _STYLE_TEMPLATE.substitute(
+        logo_uri=logo_uri,
+        symbol_uri=symbol_uri,
+        logo_ratio=LOGO_ASPECT_RATIO,
+        font_stack=FONT_STACK,
+    )
+
+    preview_styles = """
+        <style>
+        .cl-login-page.cl-preview-page {
+          position: relative !important;
+          inset: auto !important;
+          z-index: auto !important;
+          display: block !important;
+          min-height: 100vh !important;
+          min-height: 100dvh !important;
+          overflow: visible !important;
+          background:
+            radial-gradient(circle at 50% 18%, rgba(125, 79, 222, 0.07), transparent 28%),
+            #ffffff !important;
+        }
+        .cl-preview-page .cl-visual-panel { display: none !important; }
+        .cl-preview-page .cl-form-panel {
+          width: min(100%, 560px) !important;
+          min-height: auto !important;
+          margin: 0 auto !important;
+          padding: max(18px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom)) !important;
+          align-items: flex-start !important;
+        }
+        .cl-preview-page .cl-form-card {
+          max-width: none !important;
+          min-height: auto !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+        }
+        .cl-preview-page .cl-form-title {
+          line-height: 1.34 !important;
+        }
+        .cl-preview-page .cl-lead {
+          margin-top: 14px !important;
+          line-height: 1.78 !important;
+        }
+        .cl-preview-shell {
+          display: grid;
+          gap: 16px;
+          margin-top: 22px;
+        }
+        .cl-preview-card {
+          padding: 18px 18px 16px;
+          border: 1px solid rgba(125, 79, 222, 0.14);
+          border-radius: 18px;
+          background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
+          box-shadow: 0 16px 36px rgba(75, 51, 131, 0.08);
+        }
+        .cl-preview-card__kicker {
+          margin: 0 0 8px;
+          color: #7d4fde;
+          font-size: 11px;
+          font-weight: 780;
+          letter-spacing: 0.12em;
+        }
+        .cl-preview-card__title {
+          margin: 0;
+          color: #171321;
+          font-size: 20px;
+          font-weight: 820;
+          line-height: 1.34;
+          word-break: keep-all;
+        }
+        .cl-preview-card__body {
+          margin: 10px 0 0;
+          color: #5e5870;
+          font-size: 14.5px;
+          line-height: 1.78;
+          word-break: keep-all;
+        }
+        .cl-preview-steps {
+          display: grid;
+          gap: 10px;
+          margin: 16px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+        .cl-preview-steps li {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          color: #312b40;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+        .cl-preview-bullet {
+          display: inline-grid;
+          flex: 0 0 auto;
+          place-items: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          background: rgba(125, 79, 222, 0.1);
+          color: #7d4fde;
+          font-size: 13px;
+          font-weight: 800;
+        }
+        .cl-preview-note {
+          margin: 0;
+          color: #756f80;
+          font-size: 12.5px;
+          line-height: 1.72;
+        }
+        .cl-preview-actions {
+          margin-top: 10px;
+        }
+        .cl-preview-page .cl-instagram-button {
+          text-decoration: none !important;
+        }
+        @media (max-width: 420px) {
+          .cl-preview-page .cl-form-title {
+            font-size: 25px !important;
+            line-height: 1.42 !important;
+          }
+          .cl-preview-page .cl-lead {
+            font-size: 14.5px !important;
+            line-height: 1.86 !important;
+          }
+          .cl-preview-card {
+            padding: 16px 16px 14px;
+          }
+        }
+        </style>
+        """
+
+    styles = styles + preview_styles
+
+    back_href = html.escape(back_url, quote=True)
+    markup = f"""
+    <main class="cl-login-page cl-preview-page">
+      <section class="cl-form-panel" aria-labelledby="cl-preview-title">
+        <div class="cl-form-card">
+          <div class="cl-brand-mark" role="img" aria-label="CelebLife"></div>
+          <div>
+            <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
+            <p class="cl-form-title" id="cl-preview-title" role="heading" aria-level="1">
+              Instagram 로그인 화면 미리보기
+            </p>
+            <p class="cl-lead">
+              실제 인증과 권한 화면은 Meta가 호스팅합니다. Preview에서는 다음 단계의 흐름만 보여줍니다.
+            </p>
+          </div>
+
+          <div class="cl-preview-shell" aria-label="Preview-only Instagram handoff">
+            <div class="cl-preview-card">
+              <p class="cl-preview-card__kicker">NEXT STEP</p>
+              <p class="cl-preview-card__title">Instagram으로 연결하는 다음 화면</p>
+              <p class="cl-preview-card__body">
+                동의가 완료되면 실제 서비스에서는 Meta 로그인과 권한 승인 화면으로 이동합니다.
+                현재 Preview에서는 그 다음 화면을 로컬 미리보기로 보여줍니다.
+              </p>
+              <ul class="cl-preview-steps">
+                <li><span class="cl-preview-bullet">1</span><span>Instagram 계정으로 로그인</span></li>
+                <li><span class="cl-preview-bullet">2</span><span>연결할 계정과 권한 확인</span></li>
+                <li><span class="cl-preview-bullet">3</span><span>동의 후 CelebLife로 돌아오기</span></li>
+              </ul>
+            </div>
+
+            <p class="cl-preview-note">
+              실제 Meta 화면은 이 페이지 안에 렌더링되지 않습니다. 버튼 동작만 같은 흐름으로 확인할 수 있어요.
+            </p>
+          </div>
+
+          <div class="cl-actions cl-preview-actions">
+            <a class="cl-instagram-button" href="{back_href}" target="_self">
+              <span class="cl-instagram-icon">{_instagram_icon(21)}</span>
+              <span>동의 화면으로 돌아가기</span>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+    """
+
+    st.markdown(_compact_html(styles + markup), unsafe_allow_html=True)
+
+
+def _sync_all_consent() -> None:
+    st.session_state.pop("cl_oauth_handoff_url", None)
+    all_key = "cl_consent_all"
+    item_keys = [f"cl_consent_{item.key}" for item in CONSENT_ITEMS]
+
+    if st.session_state.get(all_key):
+        for key in item_keys:
+            st.session_state[key] = True
+    else:
+        for key in item_keys:
+            st.session_state[key] = False
+
+
+def _sync_individual_consent() -> None:
+    st.session_state.pop("cl_oauth_handoff_url", None)
+    all_key = "cl_consent_all"
+    item_keys = [f"cl_consent_{item.key}" for item in CONSENT_ITEMS]
+    st.session_state[all_key] = all(bool(st.session_state.get(key)) for key in item_keys)
+
+
+def _reset_consent_state() -> None:
+    st.session_state.pop("cl_oauth_handoff_url", None)
+    st.session_state["cl_consent_all"] = False
+    for item in CONSENT_ITEMS:
+        st.session_state[f"cl_consent_{item.key}"] = False
+    st.session_state["cl_consent_instagram_permissions_accepted"] = False
+
+
+_CONSENT_DETAIL_TITLES = {
+    "terms_accepted": "서비스 이용약관",
+    "privacy_accepted": "개인정보 수집·이용",
+}
+
+_CONSENT_DETAIL_KEYS = frozenset(_CONSENT_DETAIL_TITLES)
+
+_PRIVACY_SECTION_RE = re.compile(r"^(\d+)\.\s+(.+)$")
+_PRIVACY_SUBSECTION_HEADINGS = frozenset(
+    {
+        "회원 정보",
+        "Instagram 계정 정보",
+        "Instagram 인사이트 및 콘텐츠 성과정보",
+        "오디언스 통계정보",
+        "인증정보",
+        "Instagram에서 앱 연결 해제",
+        "이메일을 통한 삭제 요청",
+    }
+)
+
+_PRIVACY_LIST_INTRO_LINES = frozenset(
+    {
+        "셀럽라이프 회원가입 및 서비스 제공을 위해 다음 정보를 처리합니다.",
+        "Instagram OAuth를 통해 Instagram 계정을 연결하는 경우 다음 정보를 처리할 수 있습니다.",
+        "Instagram에서 제공하는 권한 범위 내에서 다음과 같은 정보를 처리할 수 있습니다.",
+        "수집된 정보는 다음 목적으로 이용됩니다.",
+        "AI 분석은 다음과 같은 목적으로 사용됩니다.",
+        "셀럽라이프는 서비스 운영을 위해 다음과 같은 외부 서비스를 이용할 수 있습니다.",
+        "다만 다음의 경우에는 예외로 할 수 있습니다.",
+        "회사는 이용자의 개인정보를 보호하기 위해 다음과 같은 보안조치를 적용합니다.",
+        "이용자는 자신의 개인정보에 대하여 다음과 같은 요청을 할 수 있습니다.",
+    }
+)
+
+_TERMS_TITLE_PREFIX = "셀럽라이프 인플루언서 서비스 이용약관"
+_TERMS_ARTICLE_RE = re.compile(r"^제(\d+)조\s*\((.+)\)$")
+_TERMS_APPENDIX_RE = re.compile(r"^별표\s*(\d+)\s*\|\s*(.+)$")
+_TERMS_META_PREFIXES = ("운영 서비스:", "운영 사업자:", "작성 기준일:")
+_TERMS_STATUS_BADGES = frozenset({"인정", "증빙 시 인정", "불인정"})
+_TERMS_SUMMARY_LABELS = (
+    "소싱 제품 보호",
+    "기존 일정 예외",
+    "선행 독점·전속 예외",
+    "단순 제안은 예외 아님",
+    "노쇼·일방 취소",
+    "우회 거래 손해배상",
+)
+_TERMS_NAMED_LIST_HEADINGS = frozenset({"입증자료 예시"})
+
+
+def _consent_modal_id(item_key: str) -> str:
+    return f"cl-consent-modal-{item_key.replace('_', '-')}"
+
+
+def _consent_trigger_id(item_key: str) -> str:
+    return f"cl-consent-trigger-{item_key.replace('_', '-')}"
+
+
+def _consent_detail_link(item_key: str) -> str:
+    modal_id = html.escape(_consent_modal_id(item_key), quote=True)
+    trigger_id = html.escape(_consent_trigger_id(item_key), quote=True)
+    return (
+        f'<a class="cl-consent-detail-link" id="{trigger_id}" href="#{modal_id}" '
+        f'role="button" aria-haspopup="dialog" aria-controls="{modal_id}">'
+        "상세 보기"
+        "</a>"
+    )
+
+
+def _line_is_privacy_list_row(line: str) -> bool:
+    if line in _PRIVACY_SUBSECTION_HEADINGS:
+        return False
+    if _PRIVACY_SECTION_RE.match(line) or line == "부칙":
+        return False
+    if line in _PRIVACY_LIST_INTRO_LINES:
+        return False
+    if line.startswith("본 ") or line.startswith("주식회사 "):
+        return False
+    if "다." in line or "니다." in line or "합니다." in line or "습니다." in line:
+        return False
+    return len(line) <= 34 or ":" in line
+
+
+def _privacy_policy_body_html(body: str) -> str:
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if len(lines) < 4:
+        return _paragraph_detail_body_html(body)
+
+    title, updated_at, *remaining = lines
+    parts = [
+        '<article class="cl-policy-modal__document cl-policy-modal__document--privacy">',
+        '<div class="cl-policy-modal__document-title">'
+        f"{html.escape(title)}"
+        "</div>",
+        '<p class="cl-policy-modal__metadata">'
+        f"{html.escape(updated_at)}"
+        "</p>",
+        '<div class="cl-policy-modal__intro">',
+        f"<p>{html.escape(remaining[0])}</p>",
+        f"<p>{html.escape(remaining[1])}</p>",
+        "</div>",
+    ]
+
+    list_rows: list[str] = []
+
+    def flush_list() -> None:
+        if not list_rows:
+            return
+        parts.append('<ul class="cl-policy-modal__list">')
+        parts.extend(
+            '<li class="cl-policy-modal__list-row">'
+            f"{html.escape(row)}"
+            "</li>"
+            for row in list_rows
+        )
+        parts.append("</ul>")
+        list_rows.clear()
+
+    for line in remaining[2:]:
+        section_match = _PRIVACY_SECTION_RE.match(line)
+        if section_match:
+            flush_list()
+            section_no, section_title = section_match.groups()
+            parts.append(
+                '<p class="cl-policy-modal__section-heading cl-policy-modal__section">'
+                f'<span class="cl-policy-modal__section-number">{html.escape(section_no)}</span>'
+                f"<span>{html.escape(section_title)}</span>"
+                "</p>"
+            )
+            continue
+
+        if line == "부칙":
+            flush_list()
+            parts.append(
+                '<p class="cl-policy-modal__section-heading cl-policy-modal__section cl-policy-modal__section--appendix">'
+                '<span class="cl-policy-modal__section-number">부칙</span>'
+                "<span>시행일</span>"
+                "</p>"
+            )
+            continue
+
+        if line in _PRIVACY_SUBSECTION_HEADINGS:
+            flush_list()
+            parts.append(
+                '<p class="cl-policy-modal__subheading">'
+                f"{html.escape(line)}"
+                "</p>"
+            )
+            continue
+
+        if _line_is_privacy_list_row(line):
+            list_rows.append(line)
+            continue
+
+        flush_list()
+        parts.append(
+            '<p class="cl-policy-modal__paragraph">'
+            f"{html.escape(line)}"
+            "</p>"
+        )
+
+    flush_list()
+    parts.append("</article>")
+    return "".join(parts)
+
+
+def _terms_pipe_cells(line: str) -> list[str] | None:
+    cells = [cell.strip() for cell in line.strip("|").split("|")]
+    if len(cells) != 3 or any(not cell for cell in cells):
+        return None
+    return cells
+
+
+def _terms_pipe_table_row_html(line: str, headers: tuple[str, str, str]) -> str | None:
+    cells = _terms_pipe_cells(line)
+    if cells is None:
+        return None
+
+    def cell_html(label: str, value: str) -> str:
+        safe_value = html.escape(value)
+        if value in _TERMS_STATUS_BADGES:
+            safe_value = (
+                '<span class="cl-policy-modal__status-badge">'
+                f"{safe_value}"
+                "</span>"
+            )
+        return (
+            '<span class="cl-policy-modal__table-cell">'
+            f'<span class="cl-policy-modal__table-label">{html.escape(label)}</span>'
+            f'<span class="cl-policy-modal__table-value">{safe_value}</span>'
+            "</span>"
+        )
+
+    return (
+        '<li class="cl-policy-modal__table-row">'
+        + cell_html(headers[0], cells[0])
+        + cell_html(headers[1], cells[1])
+        + cell_html(headers[2], cells[2])
+        + "</li>"
+    )
+
+
+def _terms_is_list_row(line: str) -> bool:
+    return bool(line.startswith(("-", "•", "·")) or re.match(r"^\d+[.)]\s+", line))
+
+
+def _terms_policy_body_html(body: str) -> str:
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if not lines or not lines[0].startswith(_TERMS_TITLE_PREFIX):
+        return _paragraph_detail_body_html(body)
+
+    title = lines[0]
+    subtitle = lines[1] if len(lines) > 1 else ""
+    parts = [
+        '<article class="cl-policy-modal__document cl-policy-modal__document--terms">',
+        '<div class="cl-policy-modal__document-title">'
+        f"{html.escape(title)}"
+        "</div>",
+    ]
+    if subtitle and not subtitle.startswith(_TERMS_META_PREFIXES):
+        parts.append(
+            '<p class="cl-policy-modal__document-subtitle">'
+            f"{html.escape(subtitle)}"
+            "</p>"
+        )
+        content_lines = lines[2:]
+    else:
+        content_lines = lines[1:]
+
+    list_rows: list[str] = []
+    summary_rows: list[tuple[str, str]] = []
+    table_rows: list[str] = []
+    table_headers: tuple[str, str, str] = ("항목", "기준", "상태")
+    in_summary = False
+    pending_summary_label: str | None = None
+
+    def flush_list() -> None:
+        if not list_rows:
+            return
+        parts.append('<ul class="cl-policy-modal__list">')
+        parts.extend(
+            '<li class="cl-policy-modal__list-row">'
+            f"{html.escape(row)}"
+            "</li>"
+            for row in list_rows
+        )
+        parts.append("</ul>")
+        list_rows.clear()
+
+    def flush_table() -> None:
+        if not table_rows:
+            return
+        parts.append('<ul class="cl-policy-modal__table-list">')
+        parts.extend(table_rows)
+        parts.append("</ul>")
+        table_rows.clear()
+
+    def flush_summary() -> None:
+        if not summary_rows:
+            return
+        parts.append('<div class="cl-policy-modal__summary-grid">')
+        for label, description in summary_rows:
+            parts.append(
+                '<div class="cl-policy-modal__summary-card">'
+                f'<p class="cl-policy-modal__summary-label">{html.escape(label)}</p>'
+                f'<p class="cl-policy-modal__summary-description">{html.escape(description)}</p>'
+                "</div>"
+            )
+        parts.append("</div>")
+        summary_rows.clear()
+
+    for line in content_lines:
+        table_cells = _terms_pipe_cells(line)
+        if table_cells and set(table_cells) & {"처리 원칙", "산정 기준", "기존 확정 인정"}:
+            flush_list()
+            flush_summary()
+            table_headers = (table_cells[0], table_cells[1], table_cells[2])
+            continue
+
+        if table_cells:
+            table_html = _terms_pipe_table_row_html(line, table_headers)
+            flush_list()
+            flush_summary()
+            if table_html:
+                table_rows.append(table_html)
+            continue
+
+        if line.startswith(_TERMS_META_PREFIXES):
+            flush_list()
+            flush_table()
+            flush_summary()
+            key, value = line.split(":", 1)
+            parts.append(
+                '<p class="cl-policy-modal__metadata cl-policy-modal__metadata-row">'
+                f'<span>{html.escape(key.strip())}</span>'
+                f'<strong>{html.escape(value.strip())}</strong>'
+                "</p>"
+            )
+            continue
+
+        if line == "중요 조항 요약":
+            flush_list()
+            flush_table()
+            flush_summary()
+            in_summary = True
+            pending_summary_label = None
+            parts.append(
+                '<p class="cl-policy-modal__section-heading cl-policy-modal__section">'
+                '<span class="cl-policy-modal__section-number">요약</span>'
+                "<span>중요 조항 요약</span>"
+                "</p>"
+            )
+            continue
+
+        article_match = _TERMS_ARTICLE_RE.match(line)
+        appendix_match = _TERMS_APPENDIX_RE.match(line)
+        if article_match or appendix_match or line == "부칙":
+            flush_list()
+            flush_table()
+            flush_summary()
+            in_summary = False
+            pending_summary_label = None
+            if article_match:
+                article_no, article_title = article_match.groups()
+                parts.append(
+                    '<p class="cl-policy-modal__section-heading cl-policy-modal__section cl-policy-modal__section--article">'
+                    f'<span class="cl-policy-modal__section-number">제{html.escape(article_no)}조</span>'
+                    f"<span>{html.escape(article_title)}</span>"
+                    "</p>"
+                )
+            elif appendix_match:
+                appendix_no, appendix_title = appendix_match.groups()
+                parts.append(
+                    '<p class="cl-policy-modal__section-heading cl-policy-modal__section cl-policy-modal__section--appendix">'
+                    f'<span class="cl-policy-modal__section-number">별표 {html.escape(appendix_no)}</span>'
+                    f"<span>{html.escape(appendix_title)}</span>"
+                    "</p>"
+                )
+            else:
+                parts.append(
+                    '<p class="cl-policy-modal__section-heading cl-policy-modal__section cl-policy-modal__section--appendix">'
+                    '<span class="cl-policy-modal__section-number">부칙</span>'
+                    "<span>시행일</span>"
+                    "</p>"
+                )
+            continue
+
+        if in_summary and line.startswith("※"):
+            flush_summary()
+            pending_summary_label = None
+            parts.append(
+                '<p class="cl-policy-modal__note">'
+                f"{html.escape(line)}"
+                "</p>"
+            )
+            continue
+
+        if in_summary and line in _TERMS_SUMMARY_LABELS:
+            flush_summary()
+            pending_summary_label = line
+            continue
+
+        if in_summary and pending_summary_label:
+            summary_rows.append((pending_summary_label, line))
+            pending_summary_label = None
+            if len(summary_rows) == len(_TERMS_SUMMARY_LABELS):
+                flush_summary()
+            continue
+
+        if in_summary and ":" in line:
+            label, description = line.split(":", 1)
+            summary_rows.append((label.strip(), description.strip()))
+            if len(summary_rows) == len(_TERMS_SUMMARY_LABELS):
+                flush_summary()
+            continue
+
+        flush_summary()
+        flush_table()
+        if line in _TERMS_NAMED_LIST_HEADINGS:
+            flush_list()
+            parts.append(
+                '<p class="cl-policy-modal__subheading">'
+                f"{html.escape(line)}"
+                "</p>"
+            )
+            continue
+
+        if _terms_is_list_row(line):
+            list_rows.append(line.lstrip("-•· ").strip())
+            continue
+
+        flush_list()
+        parts.append(
+            '<p class="cl-policy-modal__paragraph">'
+            f"{html.escape(line)}"
+            "</p>"
+        )
+
+    flush_summary()
+    flush_table()
+    flush_list()
+    parts.append("</article>")
+    return "".join(parts)
+
+
+def _paragraph_detail_body_html(body: str) -> str:
+    paragraphs: list[str] = []
+    current_lines: list[str] = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if current_lines:
+                paragraphs.append(
+                    '<p class="cl-policy-modal__paragraph">'
+                    + "<br>".join(current_lines)
+                    + "</p>"
+                )
+                current_lines = []
+            continue
+        current_lines.append(html.escape(stripped))
+    if current_lines:
+        paragraphs.append(
+            '<p class="cl-policy-modal__paragraph">'
+            + "<br>".join(current_lines)
+            + "</p>"
+        )
+    return "".join(paragraphs)
+
+
+def _consent_detail_body_html(item_key: str, body: str) -> str:
+    if item_key == "terms_accepted":
+        return _terms_policy_body_html(body)
+    if item_key == "privacy_accepted":
+        return _privacy_policy_body_html(body)
+    return _paragraph_detail_body_html(body)
+
+
+def _consent_detail_modals() -> str:
+    modals: list[str] = []
+    for item in CONSENT_ITEMS:
+        if item.key not in _CONSENT_DETAIL_KEYS:
+            continue
+        modal_id = html.escape(_consent_modal_id(item.key), quote=True)
+        trigger_id = html.escape(_consent_trigger_id(item.key), quote=True)
+        safe_title = html.escape(_CONSENT_DETAIL_TITLES[item.key])
+        safe_body = _consent_detail_body_html(item.key, item.body)
+        modals.append(
+            f"""
+            <section class="cl-policy-modal" id="{modal_id}" role="dialog"
+              aria-modal="true" aria-labelledby="{modal_id}-title"
+              aria-describedby="{modal_id}-description" tabindex="-1">
+              <a class="cl-policy-modal__backdrop" href="#{trigger_id}" aria-label="닫기"></a>
+              <div class="cl-policy-modal__panel">
+                <div class="cl-policy-modal__header">
+                  <div>
+                    <p class="cl-policy-modal__eyebrow">필수 안내</p>
+                    <p class="cl-policy-modal__title" id="{modal_id}-title"
+                      role="heading" aria-level="2">{safe_title}</p>
+                  </div>
+                  <a class="cl-policy-modal__close-icon" href="#{trigger_id}" aria-label="닫기">×</a>
+                </div>
+                <div class="cl-policy-modal__body" id="{modal_id}-description">{safe_body}</div>
+                <div class="cl-policy-modal__footer">
+                  <a class="cl-policy-modal__close-button" href="#{trigger_id}">확인했어요</a>
+                </div>
+              </div>
+            </section>
+            """
+        )
+    return "\n".join(modals)
+
+
+def render_consent_page(
+    oauth_url: str | None,
+    *,
+    privacy_url: str = "/Privacy",
+    oauth_disabled: bool = False,
+    preview_next_url: str | None = None,
+) -> None:
+    """Render the required consent step before the Instagram OAuth redirect."""
+
+    logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
+    symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
+    styles = _STYLE_TEMPLATE.substitute(
+        logo_uri=logo_uri,
+        symbol_uri=symbol_uri,
+        logo_ratio=LOGO_ASPECT_RATIO,
+        font_stack=FONT_STACK,
+    )
+
+    consent_styles = """
+        <style>
+        .cl-login-page.cl-consent-page {
+          position: relative !important;
+          inset: auto !important;
+          z-index: auto !important;
+          display: block !important;
+          min-height: auto !important;
+          overflow: visible !important;
+          background: #ffffff !important;
+        }
+        .st-key-cl-consent-shell {
+          --cl-consent-gutter: 20px;
+          --cl-consent-block-gap: 16px;
+          --cl-consent-panel-bottom: 12px;
+          --cl-consent-shell-gap: 4px;
+          max-width: 560px;
+          margin: 0 auto;
+          gap: var(--cl-consent-shell-gap) !important;
+          padding:
+            max(12px, env(safe-area-inset-top))
+            var(--cl-consent-gutter)
+            max(28px, env(safe-area-inset-bottom));
+        }
+        #root .stApp .st-key-cl-consent-shell,
+        #root .stApp .st-key-cl-consent-shell * {
+          font-family: __CONSENT_FONT_STACK__ !important;
+        }
+        #root .stApp .st-key-cl-consent-shell [data-testid="stIconMaterial"] {
+          font-family: "Material Symbols Rounded" !important;
+        }
+        #root .stApp .st-key-cl_consent_back button {
+          width: auto;
+          min-height: 44px !important;
+          padding: 0 4px !important;
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          color: #514b5a !important;
+        }
+        .cl-consent-page .cl-visual-panel { display: none !important; }
+        .cl-consent-page .cl-form-panel {
+          width: min(100%, 560px) !important;
+          min-height: auto !important;
+          margin: 0 auto !important;
+          padding: max(20px, env(safe-area-inset-top)) 0 var(--cl-consent-panel-bottom) !important;
+        }
+        .cl-consent-page .cl-form-card {
+          max-width: none !important;
+          min-height: auto !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+        }
+        .cl-login-page.cl-consent-page .cl-form-card .cl-brand-mark {
+          display: block !important;
+        }
+        .cl-login-page.cl-consent-page .cl-form-card .cl-eyebrow {
+          display: block !important;
+        }
+        .cl-consent-page .cl-form-title { line-height: 1.4 !important; }
+        .cl-consent-page .cl-lead {
+          margin-top: var(--cl-consent-block-gap) !important;
+          line-height: 1.8 !important;
+        }
+        .st-key-cl-consent-shell [data-testid="stMarkdownContainer"]:has(.cl-consent-page) {
+          margin-bottom: 0 !important;
+        }
+        .st-key-cl-consent-shell .stCheckbox {
+          min-height: 44px;
+          margin: 0 !important;
+        }
+        .st-key-cl-consent-shell .stCheckbox label {
+          align-items: flex-start;
+          min-height: 44px;
+        }
+        .st-key-cl-consent-shell .stElementContainer {
+          margin-bottom: 0 !important;
+        }
+        .st-key-cl-consent-shell .stCheckbox label p {
+          line-height: 1.52;
+          margin: 0;
+          word-break: keep-all;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_item_"] {
+          margin-bottom: 0;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_item_"] .stHorizontalBlock {
+          align-items: flex-start;
+          flex-wrap: nowrap !important;
+          gap: 8px !important;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_item_"] .stHorizontalBlock > [data-testid="stColumn"]:first-child {
+          flex: 1 1 auto !important;
+          min-width: 0 !important;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_item_"] .stHorizontalBlock > [data-testid="stColumn"]:last-child {
+          flex: 0 0 auto !important;
+          min-width: auto !important;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_detail_"] .stButton {
+          display: flex;
+          justify-content: flex-end;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_detail_"] [data-testid="stMarkdownContainer"] p {
+          display: flex;
+          align-items: flex-start;
+          justify-content: flex-end;
+          margin: 0 !important;
+        }
+        .st-key-cl-consent-shell [class*="st-key-cl_consent_detail_"] [data-testid="stMarkdownContainer"] {
+          margin: 0 !important;
+        }
+        .st-key-cl-consent-shell .cl-consent-detail-link {
+          display: inline-flex;
+          align-items: flex-start;
+          justify-content: flex-end;
+          min-height: 44px;
+          box-sizing: border-box;
+          padding: 0 !important;
+          color: #7d4fde !important;
+          font-weight: 700;
+          line-height: 1.52;
+          text-decoration: none !important;
+          white-space: nowrap;
+        }
+        .cl-policy-modal,
+        .cl-policy-modal * {
+          font-family: __CONSENT_FONT_STACK__ !important;
+        }
+        .cl-policy-modal {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 18px;
+        }
+        .cl-policy-modal:target {
+          display: flex;
+        }
+        .cl-policy-modal__backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(22, 18, 32, 0.46);
+          backdrop-filter: blur(3px);
+        }
+        .cl-policy-modal__panel {
+          position: relative;
+          display: flex;
+          width: min(100%, 640px);
+          max-height: min(82dvh, 760px);
+          flex-direction: column;
+          overflow: hidden;
+          padding: 0;
+          border: 1px solid rgba(124, 79, 222, 0.16);
+          border-radius: 20px;
+          background: #ffffff;
+          box-shadow: 0 22px 70px rgba(33, 26, 51, 0.2);
+        }
+        .cl-policy-modal__header {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 20px 22px 16px;
+          border-bottom: 1px solid rgba(124, 79, 222, 0.1);
+          background: rgba(255, 255, 255, 0.98);
+        }
+        .cl-policy-modal__eyebrow {
+          margin: 0 0 4px;
+          color: #7d4fde;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          line-height: 1.35;
+        }
+        .cl-policy-modal__title {
+          margin: 0;
+          color: #171321;
+          font-size: 20px;
+          font-weight: 800;
+          line-height: 1.42;
+        }
+        .cl-policy-modal__close-icon {
+          display: inline-flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 999px;
+          background: #f7f3ff;
+          color: #514b5a !important;
+          font-size: 26px;
+          line-height: 1;
+          text-decoration: none !important;
+        }
+        .cl-policy-modal__close-icon:focus-visible,
+        .cl-policy-modal__close-button:focus-visible {
+          outline: 3px solid rgba(125, 79, 222, 0.28);
+          outline-offset: 2px;
+        }
+        .cl-policy-modal__body {
+          flex: 1 1 auto;
+          min-height: 0;
+          margin: 0;
+          overflow-y: auto;
+          padding: 18px 22px 20px;
+          color: #514b5a;
+          font-size: 14.5px;
+          line-height: 1.72;
+          word-break: keep-all;
+          overscroll-behavior: contain;
+        }
+        .cl-policy-modal__document-title {
+          margin: 0;
+          color: #171321;
+          font-size: 18px;
+          font-weight: 800;
+          line-height: 1.42;
+        }
+        .cl-policy-modal__metadata {
+          margin: 6px 0 0;
+          color: #7d7286;
+          font-size: 12.5px;
+          font-weight: 620;
+          line-height: 1.5;
+        }
+        .cl-policy-modal__document-subtitle {
+          margin: 8px 0 0;
+          color: #5b5369;
+          font-size: 14px;
+          font-weight: 560;
+          line-height: 1.6;
+        }
+        .cl-policy-modal__metadata-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 8px;
+          padding: 9px 11px;
+          border: 1px solid rgba(125, 79, 222, 0.1);
+          border-radius: 12px;
+          background: #fbfaff;
+        }
+        .cl-policy-modal__metadata-row span {
+          color: #7d7286;
+          font-weight: 700;
+        }
+        .cl-policy-modal__metadata-row strong {
+          color: #2a2335;
+          font-weight: 760;
+          text-align: right;
+        }
+        .cl-policy-modal__intro {
+          display: grid;
+          gap: 8px;
+          margin-top: 14px;
+          padding: 14px;
+          border: 1px solid rgba(125, 79, 222, 0.14);
+          border-radius: 14px;
+          background: #faf8ff;
+        }
+        .cl-policy-modal__intro p {
+          margin: 0;
+          color: #453d52;
+          font-size: 14.5px;
+          line-height: 1.72;
+        }
+        .cl-policy-modal__section {
+          margin-top: 22px;
+        }
+        .cl-policy-modal__section-heading {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          margin: 0 0 10px;
+          color: #201a2d;
+          font-size: 15px;
+          font-weight: 780;
+          line-height: 1.45;
+        }
+        .cl-policy-modal__section-number {
+          display: inline-flex;
+          min-width: 24px;
+          height: 24px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          background: rgba(125, 79, 222, 0.1);
+          color: #7d4fde;
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1;
+        }
+        .cl-policy-modal__subheading {
+          margin: 14px 0 6px;
+          color: #2a2335;
+          font-size: 14px;
+          font-weight: 740;
+          line-height: 1.45;
+        }
+        .cl-policy-modal__list {
+          display: grid;
+          gap: 8px;
+          margin: 8px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+        .cl-policy-modal__list-row {
+          position: relative;
+          margin: 0;
+          padding: 0 0 0 24px !important;
+          color: #514b5a;
+          font-size: 14px;
+          line-height: 1.58;
+          overflow-wrap: anywhere;
+        }
+        .cl-policy-modal__list-row::before {
+          position: absolute;
+          top: 0.72em;
+          left: 7px;
+          width: 5px;
+          height: 5px;
+          border-radius: 999px;
+          background: #9b7cec;
+          content: "";
+        }
+        .cl-policy-modal__summary-grid {
+          display: grid;
+          gap: 10px;
+          margin-top: 12px;
+        }
+        .cl-policy-modal__summary-card {
+          padding: 12px 13px;
+          border: 1px solid rgba(125, 79, 222, 0.12);
+          border-radius: 14px;
+          background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
+        }
+        .cl-policy-modal__summary-label {
+          margin: 0;
+          color: #7d4fde;
+          font-size: 12.5px;
+          font-weight: 820;
+          line-height: 1.4;
+        }
+        .cl-policy-modal__summary-description {
+          margin: 5px 0 0;
+          color: #443d50;
+          font-size: 14px;
+          line-height: 1.58;
+        }
+        .cl-policy-modal__note {
+          margin: 12px 0 0;
+          padding: 11px 12px;
+          border-left: 3px solid #9b7cec;
+          border-radius: 12px;
+          background: #fbfaff;
+          color: #5b5369;
+          font-size: 13.5px;
+          line-height: 1.64;
+        }
+        .cl-policy-modal__table-list {
+          display: grid;
+          gap: 10px;
+          margin: 10px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+        .cl-policy-modal__table-row {
+          display: grid;
+          gap: 8px;
+          padding: 12px;
+          border: 1px solid rgba(43, 34, 63, 0.1);
+          border-radius: 14px;
+          background: #ffffff;
+        }
+        .cl-policy-modal__table-cell {
+          display: grid;
+          grid-template-columns: 64px minmax(0, 1fr);
+          gap: 10px;
+          align-items: start;
+        }
+        .cl-policy-modal__table-label {
+          color: #83798f;
+          font-size: 12px;
+          font-weight: 780;
+          line-height: 1.5;
+        }
+        .cl-policy-modal__table-value {
+          color: #342d3f;
+          font-size: 13.5px;
+          line-height: 1.58;
+          overflow-wrap: anywhere;
+        }
+        .cl-policy-modal__status-badge {
+          display: inline-flex;
+          width: fit-content;
+          min-height: 24px;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 999px;
+          background: rgba(125, 79, 222, 0.1);
+          color: #6e3ed2;
+          font-size: 12px;
+          font-weight: 820;
+          line-height: 1.4;
+        }
+        .cl-policy-modal__paragraph {
+          margin: 8px 0 0;
+          font-size: 14.5px;
+          line-height: 1.72;
+        }
+        .cl-policy-modal__paragraph:last-child {
+          margin-bottom: 0;
+        }
+        .cl-policy-modal__footer {
+          display: flex;
+          flex: 0 0 auto;
+          padding: 14px 22px 18px;
+          border-top: 1px solid rgba(124, 79, 222, 0.1);
+          background: rgba(255, 255, 255, 0.98);
+          box-shadow: 0 -12px 30px rgba(33, 26, 51, 0.06);
+        }
+        .cl-policy-modal__close-button {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          min-height: 48px;
+          border-radius: 14px;
+          font-weight: 800;
+          text-decoration: none !important;
+          color: #ffffff !important;
+          background: #7d4fde;
+        }
+        .st-key-cl_consent_submit_disabled .stButton > button,
+        .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a {
+          min-height: 60px;
+          margin-top: 12px;
+        }
+        @media (max-width: 420px) {
+          .st-key-cl-consent-shell {
+            --cl-consent-gutter: 18px;
+            padding-left: var(--cl-consent-gutter);
+            padding-right: var(--cl-consent-gutter);
+          }
+          .cl-consent-page .cl-form-panel {
+            padding: max(18px, env(safe-area-inset-top)) 0 var(--cl-consent-panel-bottom) !important;
+          }
+          .cl-consent-page .cl-form-title {
+            font-size: 25px !important;
+            line-height: 1.42 !important;
+          }
+          .cl-consent-page .cl-lead {
+            font-size: 14.5px !important;
+            line-height: 1.86 !important;
+          }
+          .st-key-cl-consent-shell .stCheckbox label p {
+            line-height: 1.54;
+          }
+          .st-key-cl-consent-shell .cl-consent-detail-link {
+            font-size: 13.5px !important;
+          }
+          .cl-policy-modal {
+            align-items: flex-end;
+            padding: 10px 10px max(10px, env(safe-area-inset-bottom));
+          }
+          .cl-policy-modal__panel {
+            width: 100%;
+            max-height: 86dvh;
+            border-radius: 20px 20px 16px 16px;
+          }
+          .cl-policy-modal__panel::before {
+            display: block;
+            width: 38px;
+            height: 4px;
+            flex: 0 0 auto;
+            margin: 8px auto 0;
+            border-radius: 999px;
+            background: rgba(45, 35, 66, 0.18);
+            content: "";
+          }
+          .cl-policy-modal__header {
+            padding: 12px 18px 14px;
+          }
+          .cl-policy-modal__title {
+            font-size: 19px;
+            line-height: 1.42;
+          }
+          .cl-policy-modal__body {
+            padding: 16px 18px 18px;
+            font-size: 14.5px;
+            line-height: 1.72;
+          }
+          .cl-policy-modal__footer {
+            padding: 12px 18px max(16px, env(safe-area-inset-bottom));
+          }
+          .cl-policy-modal__close-button {
+            min-height: 52px;
+          }
+        }
+        </style>
+        """
+    st.markdown(
+        _compact_html(
+            styles + consent_styles.replace("__CONSENT_FONT_STACK__", FONT_STACK)
+        ),
+        unsafe_allow_html=True,
+    )
+
+    with st.container(key="cl-consent-shell"):
+        if st.button(
+            "이전으로",
+            key="cl_consent_back",
+            type="tertiary",
+            icon=":material/arrow_back:",
+        ):
+            _reset_consent_state()
+            st.query_params.clear()
+            st.rerun()
+
+        st.markdown(
+            _compact_html(
+                """
+                <main class="cl-login-page cl-consent-page">
+                  <section class="cl-form-panel" aria-labelledby="cl-consent-title">
+                    <div class="cl-form-card">
+                      <div class="cl-brand-mark" role="img" aria-label="CelebLife"></div>
+                      <div>
+                        <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
+                        <p class="cl-form-title" id="cl-consent-title" role="heading" aria-level="1">
+                          연결 전 동의가 필요해요
+                        </p>
+                        <p class="cl-lead">
+                          필수 동의를 확인한 뒤 Instagram 연결을 진행합니다.
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+                </main>
+                """
+            ),
+            unsafe_allow_html=True,
+        )
+
+        st.checkbox(
+            "필수 항목에 모두 동의합니다.",
+            key="cl_consent_all",
+            on_change=_sync_all_consent,
+        )
+
+        consent_values: dict[str, bool] = {}
+        for item in CONSENT_ITEMS:
+            checkbox_key = f"cl_consent_{item.key}"
+            with st.container(key=f"cl_consent_item_{item.key}"):
+                if item.key in _CONSENT_DETAIL_KEYS:
+                    label_column, detail_column = st.columns(
+                        [4, 1],
+                        gap="small",
+                        vertical_alignment="top",
+                    )
+                    with label_column:
+                        consent_values[item.key] = st.checkbox(
+                            item.label,
+                            key=checkbox_key,
+                            on_change=_sync_individual_consent,
+                        )
+                    with detail_column:
+                        with st.container(key=f"cl_consent_detail_{item.key}"):
+                            st.markdown(
+                                _consent_detail_link(item.key),
+                                unsafe_allow_html=True,
+                            )
+                else:
+                    consent_values[item.key] = st.checkbox(
+                        item.label,
+                        key=checkbox_key,
+                        on_change=_sync_individual_consent,
+                    )
+
+        st.markdown(
+            _compact_html(_consent_detail_modals()),
+            unsafe_allow_html=True,
+        )
+
+        accepted = all_required_accepted(consent_values)
+        final_url = oauth_url or preview_next_url
+        final_disabled = not accepted or (oauth_disabled and not preview_next_url) or (
+            not oauth_disabled and not oauth_url
+        )
+
+        if final_disabled or not final_url:
+            st.button(
+                "동의하고 Instagram으로 계속하기",
+                key="cl_consent_submit_disabled",
+                disabled=True,
+                use_container_width=True,
+            )
+            if oauth_disabled or not oauth_url:
+                if preview_next_url:
+                    st.caption("Preview에서는 다음 화면 미리보기로 이동합니다.")
+                else:
+                    st.caption("Preview 설정이 없어 화면 확인만 가능합니다.")
+        else:
+            st.link_button(
+                "동의하고 Instagram으로 계속하기",
+                final_url,
+                key="cl_consent_submit_link",
+                type="primary",
+                use_container_width=True,
+            )
 
 def _instagram_cta(safe_oauth_url: str, *, oauth_disabled: bool) -> str:
     icon = _instagram_icon(21)
@@ -1117,8 +2446,7 @@ def _instagram_cta(safe_oauth_url: str, *, oauth_disabled: bool) -> str:
             <a
               class="cl-instagram-button"
               href="{safe_oauth_url}"
-              target="_blank"
-              rel="noopener noreferrer"
+              target="_self"
             >
               <span class="cl-instagram-icon">{icon}</span>
               <span>Instagram으로 계속하기</span>

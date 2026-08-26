@@ -3,10 +3,16 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 from supabase import create_client, Client
 
 from .config import config
+from .consent import (
+    CONSENT_SCHEMA_VERSION,
+    INSTAGRAM_PERMISSIONS_VERSION,
+    PRIVACY_VERSION,
+    TERMS_VERSION,
+)
 from .models import User, Token, Insight
 
 
@@ -190,6 +196,116 @@ def save_token(
             "expires_at": expires_at.isoformat() if expires_at else None,
         }
     ).execute()
+
+
+def complete_instagram_onboarding(
+    *,
+    instagram_id: str,
+    instagram_username: str,
+    access_token: str,
+    consent: Any,
+    expires_at: Optional[datetime] = None,
+) -> int:
+    """Atomically save user, consent audit row and token via Supabase RPC."""
+    instagram_id = _require_value("instagram_id", instagram_id)
+    instagram_username = _require_value("instagram_username", instagram_username)
+    access_token = _require_value("access_token", access_token)
+    state_nonce = _require_non_empty_string(consent, "nonce")
+    consent_accepted_at = _require_datetime(consent, "accepted_at")
+    consent_bundle_hash = _require_bundle_hash(consent, "bundle_hash")
+    consent_schema_version = _require_exact_attr(
+        consent,
+        "consent_schema_version",
+        CONSENT_SCHEMA_VERSION,
+    )
+    terms_version = _require_exact_attr(consent, "terms_version", TERMS_VERSION)
+    privacy_version = _require_exact_attr(consent, "privacy_version", PRIVACY_VERSION)
+    instagram_permissions_version = _require_exact_attr(
+        consent,
+        "instagram_permissions_version",
+        INSTAGRAM_PERMISSIONS_VERSION,
+    )
+    consent_age = _require_true_attr(consent, "age_confirmed")
+    consent_terms = _require_true_attr(consent, "terms_accepted")
+    consent_privacy = _require_true_attr(consent, "privacy_accepted")
+    consent_instagram = _require_true_attr(consent, "instagram_permissions_accepted")
+
+    client = get_client()
+    result = client.rpc(
+        "complete_instagram_onboarding",
+        {
+            "p_instagram_id": instagram_id,
+            "p_instagram_username": instagram_username,
+            "p_access_token": access_token,
+            "p_expires_at": expires_at.isoformat() if expires_at else None,
+            "p_state_nonce": state_nonce,
+            "p_consent_schema_version": consent_schema_version,
+            "p_terms_version": terms_version,
+            "p_privacy_version": privacy_version,
+            "p_instagram_permissions_version": instagram_permissions_version,
+            "p_consent_age": consent_age,
+            "p_consent_terms": consent_terms,
+            "p_consent_privacy": consent_privacy,
+            "p_consent_instagram": consent_instagram,
+            "p_accepted_at": consent_accepted_at.isoformat(),
+            "p_bundle_hash": consent_bundle_hash,
+        },
+    ).execute()
+
+    data = result.data
+    if isinstance(data, list):
+        if not data:
+            raise ValueError("complete_instagram_onboarding returned no user_id")
+        data = data[0]
+    if isinstance(data, dict):
+        if "complete_instagram_onboarding" in data:
+            data = data["complete_instagram_onboarding"]
+        else:
+            raise ValueError("complete_instagram_onboarding returned invalid user_id")
+    if isinstance(data, bool) or not isinstance(data, int) or data <= 0:
+        raise ValueError("complete_instagram_onboarding returned invalid user_id")
+    return data
+
+
+def _require_value(name: str, value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"complete_instagram_onboarding requires {name}")
+    return value
+
+
+def _require_non_empty_string(obj: Any, attr: str) -> str:
+    value = getattr(obj, attr, None)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"complete_instagram_onboarding requires {attr}")
+    return value
+
+
+def _require_bundle_hash(obj: Any, attr: str) -> str:
+    value = _require_non_empty_string(obj, attr)
+    if len(value) != 64 or any(ch not in "0123456789abcdef" for ch in value):
+        raise ValueError(f"complete_instagram_onboarding requires valid {attr}")
+    return value
+
+
+def _require_datetime(obj: Any, attr: str) -> datetime:
+    value = getattr(obj, attr, None)
+    if not isinstance(value, datetime) or value.tzinfo is None:
+        raise ValueError(f"complete_instagram_onboarding requires {attr}")
+    return value
+
+
+def _require_exact_attr(obj: Any, attr: str, expected: Any) -> Any:
+    value = getattr(obj, attr, None)
+    if value != expected:
+        raise ValueError(f"complete_instagram_onboarding requires {attr}={expected}")
+    return value
+
+
+def _require_true_attr(obj: Any, attr: str) -> bool:
+    value = getattr(obj, attr, None)
+    if value is not True:
+        raise ValueError(f"complete_instagram_onboarding requires {attr}=true")
+    return True
 
 
 def get_user_token(user_id: int, token_type: str) -> Optional[Token]:

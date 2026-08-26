@@ -222,17 +222,14 @@ def test_root_preview_missing_config_renders_login_visual_without_db_or_oauth(
     app = AppTest.from_file(APP_PAGE, default_timeout=5)
     app.run(timeout=5)
     html = _all_markdown(app)
-    cta = _disabled_instagram_cta(html)
 
     assert not app.exception
     assert "cl-login-page" in html
     assert "Instagram으로 계속하기" in html
     assert app.error == []
-    assert 'aria-disabled="true"' in cta
-    assert "disabled" in cta
-    assert "href=" not in cta
-    assert "javascript:" not in cta
-    assert 'href="#"' not in cta
+    assert 'href="/Login?step=consent"' in html
+    assert "javascript:" not in html
+    assert 'href="#"' not in html
 
 
 def test_vercel_production_safe_mode_missing_config_does_not_render_ui_only(

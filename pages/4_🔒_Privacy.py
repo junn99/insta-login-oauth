@@ -6,7 +6,8 @@ from src.config import config
 st.set_page_config(page_title="Privacy Policy", page_icon="🔒", layout="centered")
 
 st.title("🔒 개인정보 처리방침 / Privacy Policy")
-st.caption("최종 업데이트: 2026-03-06 / Last Updated: March 6, 2026")
+st.caption("Preview 버전: preview-2026-08-26 / Last Updated: August 26, 2026")
+st.info("이 문안은 Preview 검증용이며 정식 배포 전 법률 검토를 거쳐 확정합니다.")
 
 st.markdown("---")
 
@@ -39,6 +40,9 @@ This app collects the following data when you connect your Instagram Business ac
 
 **인증 토큰 / Authentication Tokens:**
 - Instagram 액세스 토큰 (비공개 데이터베이스에 저장) / Instagram Access Token (stored in a private database)
+
+요약: Instagram 비즈니스 계정 ID·사용자명·표시 이름·프로필 사진 URL·팔로워 및 게시물 수,
+콘텐츠 반응·인사이트·오디언스 통계, 인증 토큰을 수집합니다.
 """)
 
 st.markdown("---")
@@ -54,6 +58,7 @@ Collected data is used **solely for the following purposes**:
 - **시간별 지표 추이 차트 생성** / Generating time-series charts of your metrics
 - **오디언스 인구통계 시각화** / Visualizing audience demographic breakdowns
 - **토큰 관리 및 자동 갱신** / Managing and auto-refreshing authentication tokens
+- **제품·판매 방향 제안** / Suggesting product and sales directions
 
 본 앱은 사용자의 개인 소셜 미디어 데이터, 개인 메시지, 개인 게시물 내용에 접근하지 않습니다.
 

@@ -25,7 +25,8 @@ if preview_ui_only:
         oauth_url=None,
         back_url="/",
         privacy_url="/Privacy",
-        oauth_disabled=True,
+        oauth_disabled=False,
+        continue_url="/Login?step=consent",
     )
     st.stop()
 
