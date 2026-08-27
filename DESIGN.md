@@ -3,7 +3,7 @@
 ## Source of truth
 
 - Status: Active
-- Last refreshed: 2026-08-26
+- Last refreshed: 2026-08-27
 - Primary product surfaces: `/Login` introduction, full-page consent, Instagram OAuth handoff
 - Evidence reviewed: `pyproject.toml`, `src/ui/celeblife_login.py`, `src/consent.py`, `pages/2_🔐_Login.py`, `pages/4_🔒_Privacy.py`, `tests/test_login_ui_integration.py`, `.omx/artifacts/visual-ralph/instagram-consent/reference.png`, `.omx/artifacts/visual-ralph/instagram-consent/privacy-v3-top-390.png`, and `.omx/artifacts/visual-ralph/instagram-consent/privacy-v3-bottom-390.png`
 
@@ -29,7 +29,7 @@
 
 - Primary navigation: linear onboarding with an explicit back action
 - Core routes/screens: `/Login` intro → `/auth/instagram/start` browser binding → `/Login?step=consent` → Instagram OAuth → `/auth/callback` → `/Dashboard`
-- Content hierarchy: hook → one-line explanation → trust proof → local continue CTA; then CelebLife brand mark → consent heading → all-agree → three required rows, with detail buttons only on terms/privacy → final CTA
+- Content hierarchy: hook → one-line explanation → trust proof → local continue CTA; then CelebLife brand mark → consent heading → all-agree → three required rows, with detail buttons only on terms/privacy → final CTA. The consent screen does not show the `CELEBLIFE ONBOARDING` eyebrow below the logo.
 
 ## Design principles
 
@@ -40,17 +40,17 @@
 
 ## Visual language
 
-- Color: existing CelebLife purple (`#7d4fde`) on white with restrained lavender surfaces
-- Typography: existing Pretendard-first Korean font stack; natural wrapping with no forced desktop line break in the main hook
+- Color: existing CelebLife purple (`#7d4fde`) on white with restrained lavender surfaces; consent checkboxes and the final Instagram CTA use this purple for selected/active states, with lavender disabled states.
+- Typography: existing Pretendard-first Korean font stack; the main hook is one line when it fits, otherwise it may wrap only after the comma so `선택의 기준을 만듭니다.` moves as a whole.
 - Spacing/layout rhythm: consent-shell owns the 18-20px outer gutter, title-to-lead and lead-to-all-agree block gaps stay at 16px, consent items keep a 48px row step with 44px minimum touch targets, and the 60px primary action remains distinct
 - Shape/radius/elevation: reuse the current rounded badges/buttons; consent content stays flat and focused
 - Motion: no required motion; honor reduced-motion preferences
-- Imagery/iconography: reuse existing CelebLife and Instagram assets from `assets/login/`; the consent page keeps the CelebLife brand mark and onboarding eyebrow visible at every breakpoint
+- Imagery/iconography: reuse existing CelebLife and Instagram assets from `assets/login/`; the consent page keeps the CelebLife brand mark visible at every breakpoint and omits the onboarding eyebrow to reduce top clutter
 
 ## Components
 
 - Existing components to reuse: login illustration, trust badge, Instagram CTA styling, and Streamlit checkboxes
-- New/changed components: full-page consent shell, same-document CSS `:target` policy popups for terms/privacy detail, compact detail triggers on legal rows only, all-agree synchronization, reset-on-back behavior, final OAuth CTA, hidden Instagram-permission audit derivation from the accepted privacy/data-use handoff
+- New/changed components: full-page consent shell, same-document CSS `:target` policy popups for terms/privacy detail, compact detail triggers on legal rows only, all-agree synchronization, reset-on-back behavior, purple Streamlit final OAuth CTA, selected checkbox styling scoped to the consent shell, hidden Instagram-permission audit derivation from the accepted privacy/data-use handoff
 - Variants and states: intro, consent incomplete, consent complete, credentialless Preview disabled, callback error, logged in
 - Token/component ownership: `src/ui/celeblife_login.py`
 
