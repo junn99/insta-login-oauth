@@ -82,6 +82,12 @@ def _all_markdown(app):
     return "\n".join(element.value for element in app.markdown)
 
 
+def _all_captions(app):
+    return "\n".join(
+        element.value for element in app if type(element).__name__ == "Caption"
+    )
+
+
 def _link_buttons(app):
     return [
         element.proto
@@ -517,6 +523,7 @@ def test_consent_step_does_not_start_oauth_before_required_agreements(
 
     assert login_patches["calls"]["oauth_url"] == 0
     assert "https://instagram.example/oauth" not in html
+    assert "Preview 설정이 없어 화면 확인만 가능합니다." not in _all_captions(app)
     assert any(
         button.label == "동의하고 Instagram으로 계속하기" for button in app.button
     )
@@ -764,6 +771,7 @@ def test_preview_missing_config_consent_step_disables_oauth_handoff(
         button.label == "동의하고 Instagram으로 계속하기" and button.disabled
         for button in app.button
     )
+    assert "Preview 설정이 없어 화면 확인만 가능합니다." in _all_captions(app)
     assert "/Login?step=instagram-preview" not in html
     assert "Instagram 로그인 화면 미리보기" not in html
 

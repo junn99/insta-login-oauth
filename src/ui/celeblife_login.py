@@ -2212,7 +2212,7 @@ def render_consent_page(
                 disabled=True,
                 use_container_width=True,
             )
-            if oauth_disabled or not oauth_url:
+            if oauth_disabled:
                 st.caption("Preview 설정이 없어 화면 확인만 가능합니다.")
         else:
             st.link_button(
