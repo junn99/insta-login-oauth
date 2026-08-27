@@ -103,7 +103,9 @@ with col2:
 
 with col3:
     st.markdown("### 3️⃣ 자동 수집")
-    if config.IS_VERCEL:
+    if config.is_vercel_preview():
         st.write("Preview에서는 자동 수집이 비활성화되어 있습니다.")
+    elif config.IS_VERCEL:
+        st.write("Vercel 배포에서는 자동 수집이 비활성화되어 있습니다.")
     else:
         st.write("인사이트는 6시간마다 자동으로 수집됩니다.")

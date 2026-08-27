@@ -1,4 +1,4 @@
--- Supabase Schema for urlinsta
+-- Supabase Schema for CelebLife
 -- Run this in Supabase SQL Editor (https://supabase.com/dashboard)
 
 -- Users table
@@ -22,7 +22,7 @@ CREATE TABLE tokens (
     CONSTRAINT tokens_user_type_unique UNIQUE (user_id, token_type)
 );
 
--- Consent audit table for the Preview Instagram onboarding handoff.
+-- Consent audit table for the Instagram onboarding handoff.
 CREATE TABLE user_consents (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -153,8 +153,8 @@ BEGIN
     END IF;
 
     IF p_terms_version <> 'influencer-v1.2-2026-08-26'
-       OR p_privacy_version <> 'preview-2026-08-26-privacy-v3'
-       OR p_instagram_permissions_version <> 'preview-2026-08-26' THEN
+       OR p_privacy_version <> 'privacy-2026-08-26-v3'
+       OR p_instagram_permissions_version <> 'instagram-permissions-2026-08-26' THEN
         RAISE EXCEPTION 'unsupported consent policy version' USING ERRCODE = '23514';
     END IF;
 

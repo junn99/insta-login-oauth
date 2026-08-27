@@ -45,6 +45,15 @@ DROP POLICY IF EXISTS "Service role full access" ON collection_log;
 CREATE POLICY "Service role full access" ON collection_log
     FOR ALL TO service_role USING (true);
 
+DO $$
+BEGIN
+    IF to_regclass('public.user_consents') IS NOT NULL THEN
+        DROP POLICY IF EXISTS "Service role full access" ON public.user_consents;
+        CREATE POLICY "Service role full access" ON public.user_consents
+            FOR ALL TO service_role USING (true);
+    END IF;
+END $$;
+
 COMMIT;
 
 -- Verify: every row should show roles = {service_role}. A row showing {public}

@@ -221,6 +221,11 @@ def test_consent_step_renders_full_page_terms_gate(login_patches):
     assert "서비스 이용약관에 동의합니다. (필수)" in labels
     assert "개인정보 수집·이용에 동의합니다. (필수)" in labels
     assert "Instagram 데이터 접근·분석에 동의합니다. (필수)" not in labels
+    assert labels[1:] == [
+        "만 14세 이상입니다. (필수)",
+        "서비스 이용약관에 동의합니다. (필수)",
+        "개인정보 수집·이용에 동의합니다. (필수)",
+    ]
     assert len(labels) == 4
     assert app.expander == []
     assert all(f'href="#{modal_id}"' in html for modal_id in detail_modal_ids)

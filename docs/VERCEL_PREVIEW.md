@@ -1,91 +1,61 @@
 # Vercel Preview Runbook
 
-> 목적: 기존 Streamlit 운영 배포와 운영 Supabase는 그대로 두고, `codex/vercel-preview` 브랜치를 Vercel 비공개 Preview와 별도 Preview Supabase에서 검증한다. 이 문서는 Production 전환 절차가 아니다.
+> 목적: 기존 Streamlit 운영 배포와 운영 Supabase는 그대로 두고, `codex/vercel-preview` 브랜치를 Vercel 보호 Preview와 별도 Preview Supabase에서 검증한다. 이 문서는 Production 전환 절차가 아니다.
 
-## 1. 현재 배포 경계
+## 1. 배포 경계
 
 | 항목 | 값 |
-|------|-----|
+| --- | --- |
 | Git 브랜치 | `codex/vercel-preview` |
-| Vercel 플랜 | Hobby |
+| Vercel 프로젝트 | 현재 연결 프로젝트, Production 전환 전에는 Preview 용도로만 사용 |
 | Python | `3.12` (`.python-version`) |
 | 앱 런타임 | Streamlit `>=1.61,<1.62` ASGI |
 | Vercel 엔트리포인트 | `asgi:app` (`pyproject.toml`) |
-| ASGI 파일 | `asgi.py` |
+| Vercel 설정 | `vercel.json`은 스키마만 두고 Python framework detection 사용 |
 | 추가 HTTP 라우트 | `/auth/instagram/start`, `/auth/callback`, `/auth/logout`, `/healthz` |
-| DB 변경 | Preview Supabase에만 `migrations/002_add_consent_onboarding_transaction.sql` 적용 |
+| DB 변경 | 새 Preview Supabase에만 `supabase_schema.sql` 1회 실행 |
 | 운영 전환 | 하지 않음 |
-
-Vercel 설정 파일은 스키마만 두고 프레임워크 감지를 허용한다. Streamlit WebSocket 연결은 장시간 유지되지 않을 수 있으므로 Preview 검증 때 40분 이상 켜 둔 뒤 새로고침/재연결 동작을 확인한다.
 
 Evidence boundary:
 
 - `/healthz` 200은 Vercel 함수가 살아 있다는 증거다. DB, UI, OAuth 성공을 증명하지 않는다.
 - `/Login` 화면 확인은 UI 렌더링 증거다. OAuth 콜백, Supabase 저장, 세션 생성을 증명하지 않는다.
-- 실제 OAuth 성공은 Meta 테스트 계정으로 동의 후 `/auth/callback`에서 Supabase 트랜잭션이 완료되고 `/Dashboard`로 이동해야 증명된다.
+- 실제 OAuth 성공은 Meta 테스트 계정 또는 앱 역할 계정으로 동의 후 `/auth/callback`에서 Supabase 트랜잭션이 완료되고 `/Dashboard`로 이동해야 증명된다.
 
 ## 2. Preview 환경 변수
 
-Vercel Project의 Preview 환경에만 다음 값을 넣는다.
+Vercel Project의 Preview 환경에만 아래 값을 넣는다. 운영 Supabase URL이나 운영 service role key를 Preview 환경에 넣지 않는다.
 
-```text
-INSTAGRAM_APP_ID
-INSTAGRAM_APP_SECRET
-OAUTH_REDIRECT_URI
-CONTACT_EMAIL
-SUPABASE_URL
-SUPABASE_KEY
-SUPABASE_PREVIEW_PROJECT_REF
-SUPABASE_PRODUCTION_PROJECT_REF
-SESSION_COOKIE_SECRET
-PREVIEW_SAFE_MODE=true
-```
+| 이름 | 값 | 비밀값 | 검증 기준 |
+| --- | --- | --- | --- |
+| `INSTAGRAM_APP_ID` | Meta Instagram 앱 ID | 아니오 | Meta 앱과 일치 |
+| `INSTAGRAM_APP_SECRET` | Meta Instagram 앱 secret | 예 | Vercel에만 입력 |
+| `OAUTH_REDIRECT_URI` | `https://<vercel-preview-host>/auth/callback` | 아니오 | Meta Redirect URI와 정확히 일치 |
+| `CONTACT_EMAIL` | 운영 문의 이메일 | 아니오 | 개인정보/삭제 안내와 일치 |
+| `SUPABASE_URL` | Preview Supabase URL | 아니오 | `https://<SUPABASE_PREVIEW_PROJECT_REF>.supabase.co` |
+| `SUPABASE_KEY` | Preview Supabase secret/service role key | 예 | `sb_secret_...` 또는 JWT `role=service_role` |
+| `SUPABASE_PREVIEW_PROJECT_REF` | Preview Supabase project ref | 아니오 | Production ref와 다름 |
+| `SUPABASE_PRODUCTION_PROJECT_REF` | Production Supabase project ref | 아니오 | Preview ref와 다름 |
+| `SESSION_COOKIE_SECRET` | 32바이트 이상 랜덤 문자열 | 예 | 길이 32바이트 이상 |
+| `PREVIEW_SAFE_MODE` | `true` | 아니오 | Preview에서는 쓰기/수집 안전모드 강제 |
 
-`OAUTH_REDIRECT_URI`는 Vercel Preview URL 기준으로 정확히 아래 경로까지 포함한다.
-
-```text
-https://<vercel-preview-host>/auth/callback
-```
-
-기존 Streamlit 운영 배포의 Meta Redirect URI는 그대로 유지한다.
-
-```text
-https://<existing-streamlit-host>/Login
-```
-
-`SESSION_COOKIE_SECRET`은 32바이트 이상이어야 한다. 로컬 터미널에 값을 남기지 않으려면 생성값을 바로 Vercel CLI stdin으로 전달한다.
+`SESSION_COOKIE_SECRET`은 값을 터미널에 남기지 않도록 stdin으로 입력한다.
 
 ```bash
 python3 -c 'import secrets; print(secrets.token_urlsafe(48))' | vercel env add SESSION_COOKIE_SECRET preview --sensitive
 ```
 
-길이만 로컬에서 확인할 때는 값을 출력하지 않는다.
-
-```bash
-python3 -c 'import secrets; value=secrets.token_urlsafe(48); assert len(value.encode()) >= 32; print(len(value.encode()))'
-```
-
-나머지 환경 변수도 `vercel env add <NAME> preview --sensitive`로 넣는다. 비밀값을 셸 히스토리에 남기지 않도록 파일 또는 stdin 입력을 사용한다.
-
-Supabase Preview isolation:
-
-- `SUPABASE_URL`은 Preview 전용 Supabase 프로젝트 URL이어야 한다.
-- `SUPABASE_PREVIEW_PROJECT_REF`는 Preview 프로젝트 ref다.
-- `SUPABASE_PRODUCTION_PROJECT_REF`는 운영 프로젝트 ref다.
-- 두 ref 값은 서로 달라야 한다.
-- `SUPABASE_URL`의 host는 `https://<SUPABASE_PREVIEW_PROJECT_REF>.supabase.co`와 정확히 일치해야 한다.
-
-`VERCEL_ENV=preview`에서 위 조건이 맞지 않으면 OAuth/DB 작업을 진행하지 않는다. 운영 Supabase URL이나 운영 service role key를 Preview 환경에 넣지 않는다.
+다른 secret도 `vercel env add <NAME> preview --sensitive`로 넣는다. Vercel Preview Feedback 같은 제품 옵션은 앱 동작 필수 env가 아니다.
 
 ## 3. Meta 설정
 
-Meta App Dashboard에는 Vercel Preview 콜백을 추가한다.
+Meta App Dashboard의 Instagram OAuth Redirect URI에 Preview 콜백을 추가한다.
 
 ```text
 https://<vercel-preview-host>/auth/callback
 ```
 
-기존 Streamlit 콜백은 삭제하지 않는다.
+기존 Streamlit 운영 콜백은 삭제하지 않는다.
 
 ```text
 https://<existing-streamlit-host>/Login
@@ -95,11 +65,11 @@ Preview 검증은 Meta 테스트 계정 또는 앱 역할이 있는 계정만 �
 
 ## 4. Vercel 접근 보호
 
-Vercel Project의 Standard Protection에서 Preview 배포용 Vercel Authentication을 켠다. 이 설정이 되기 전에는 OAuth 검증을 진행하지 않는다.
+Preview 배포에는 Vercel Authentication을 켠다. 보호 설정 전에는 OAuth 검증을 진행하지 않는다.
 
 확인 기준:
 
-- Preview URL을 비로그인 브라우저에서 열면 Vercel 보호 화면이 먼저 나온다.
+- 비로그인 브라우저에서 Preview URL을 열면 Vercel 보호 화면이 먼저 나온다.
 - 보호 통과 후 `/Login` 페이지가 보인다.
 - 보호를 우회하는 공개 Preview URL을 공유하지 않는다.
 
@@ -107,88 +77,46 @@ Vercel Project의 Standard Protection에서 Preview 배포용 Vercel Authenticat
 
 Preview OAuth는 별도 Preview Supabase에서만 검증한다. 운영 Supabase에는 이 섹션의 SQL을 실행하지 않는다.
 
-`SUPABASE_KEY` 확인 기준:
-
-- 새 형식: `sb_secret_...`이면 통과, `sb_publishable_...`이면 중단
-- JWT 형식: payload의 `role`이 `service_role`이면 통과, `anon`이면 중단
-
-Preview Supabase SQL Editor에서 기존 RLS 활성 상태와 정책을 먼저 읽기 전용으로 확인한다.
-
-```sql
-SELECT c.relname AS tablename, c.relrowsecurity AS rls_enabled
-FROM pg_class AS c
-JOIN pg_namespace AS n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public'
-  AND c.relname IN ('users', 'tokens', 'insights', 'audience_data', 'collection_log')
-ORDER BY c.relname;
-
-SELECT tablename, policyname, roles, cmd, qual, with_check
-FROM pg_policies
-WHERE schemaname = 'public'
-  AND tablename IN ('users', 'tokens', 'insights', 'audience_data', 'collection_log')
-ORDER BY tablename;
-```
-
-다섯 테이블 모두 `rls_enabled = true`여야 하고, 정책은 `roles = {service_role}`로 제한되어 있어야 한다. RLS가 꺼져 있거나 정책이 없거나 `{public}`/익명 접근 정책이 보이면 Preview OAuth를 중단하고 키/정책을 먼저 정리한다. 이 runbook에서는 `migrations/001_scope_rls_to_service_role.sql`을 실행하지 않는다.
-
-### 5.1 Migration 002 적용
-
-Preview Supabase SQL Editor에서 다음 파일을 실행한다.
+새 Preview Supabase 프로젝트의 SQL Editor에서 canonical schema를 한 번 실행한다.
 
 ```text
-migrations/002_add_consent_onboarding_transaction.sql
+supabase_schema.sql
 ```
 
-이 마이그레이션의 역할:
+이 파일은 다음을 한 번에 만든다.
 
-- `user_consents` 테이블 생성
-- `tokens(user_id, token_type)` 중복 방지 제약 추가
-- OAuth 콜백에서 사용자, 동의 내역, 토큰을 하나의 트랜잭션으로 저장하는 `complete_instagram_onboarding` RPC 생성
-- RPC 실행 권한을 service role로 제한
-
-적용 전 확인:
-
-```sql
-SELECT user_id, token_type, COUNT(*) AS count
-FROM public.tokens
-GROUP BY user_id, token_type
-HAVING COUNT(*) > 1;
-```
-
-행이 나오면 중단한다. 002는 중복 토큰을 자동 정리하지 않는다.
+- `users`, `tokens`, `insights`, `audience_data`, `collection_log`
+- `user_consents`
+- `tokens(user_id, token_type)` unique constraint
+- service role 전용 RLS 정책
+- `complete_instagram_onboarding` RPC
 
 적용 후 smoke 확인:
 
 ```sql
-SELECT to_regclass('public.user_consents') AS user_consents_table;
+SELECT to_regclass('public.users') AS users_table,
+       to_regclass('public.tokens') AS tokens_table,
+       to_regclass('public.user_consents') AS user_consents_table;
+
+SELECT c.relname AS tablename, c.relrowsecurity AS rls_enabled
+FROM pg_class AS c
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relname IN ('users', 'tokens', 'user_consents', 'insights', 'audience_data', 'collection_log')
+ORDER BY c.relname;
+
+SELECT tablename, policyname, roles, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
 
 SELECT routine_name
 FROM information_schema.routines
 WHERE routine_schema = 'public'
   AND routine_name = 'complete_instagram_onboarding';
-
-SELECT constraint_name
-FROM information_schema.table_constraints
-WHERE table_schema = 'public'
-  AND table_name = 'tokens'
-  AND constraint_type = 'UNIQUE';
 ```
 
-`user_consents_table`은 `user_consents`, RPC는 1행, `tokens` unique constraint는 1개 이상이어야 한다.
-
-Rollback은 Preview Supabase에서만 수행한다.
-
-```sql
-DROP FUNCTION IF EXISTS public.complete_instagram_onboarding(
-  text,text,text,timestamptz,text,integer,text,text,text,boolean,boolean,boolean,
-  boolean,timestamptz,text
-);
-DROP INDEX IF EXISTS public.idx_user_consents_user_accepted_at;
-DROP TABLE IF EXISTS public.user_consents;
-ALTER TABLE public.tokens DROP CONSTRAINT IF EXISTS tokens_user_type_unique;
-```
-
-Rollback 뒤에는 OAuth 콜백이 실패하는 것이 정상이다. 다시 검증하려면 002를 재적용한다.
+모든 테이블은 존재해야 하고, RLS는 켜져 있어야 하며, 정책은 `roles = {service_role}`이어야 한다. `{public}`, `anon`, `authenticated`에 열려 있으면 Preview OAuth 검증을 중단한다.
 
 ## 6. Preview 안전모드
 
@@ -209,9 +137,7 @@ Preview에서 막는 작업:
 - Settings 수동 토큰 갱신
 - Live Insights의 실시간 Instagram API 호출
 
-빈 Dashboard는 Preview 안전모드에서 정상 상태일 수 있다.
-
-환경변수가 없는 Preview 배포는 UI 확인만 허용된다. 이 경우 `/Login`과 동의 화면은 렌더링되지만 최종 Instagram OAuth 버튼은 비활성화되어야 한다. 이 상태는 화면 검토용이며 OAuth 성공 증거가 아니다.
+빈 Dashboard는 Preview 안전모드에서 정상 상태일 수 있다. 환경변수가 없는 Preview 배포는 화면 확인만 허용되며, 최종 Instagram OAuth 버튼은 비활성화되어야 한다.
 
 ## 7. 동의 게이트
 
@@ -227,12 +153,21 @@ Preview에서 막는 작업:
 보이는 필수 동의 3개:
 
 - 만 14세 이상
-- 이용약관
+- 서비스 이용약관
 - 개인정보 수집 및 이용
 
-Instagram 데이터 접근·분석 고지는 개인정보 수집·이용 상세 안에 포함한다. OAuth `state`와 Supabase 감사 레코드는 기존 스키마를 유지하기 위해 `instagram_permissions_accepted=true`를 계속 포함한다.
+Instagram 데이터 접근과 분석 고지는 개인정보 수집 및 이용 상세 안에 포함한다. OAuth `state`와 Supabase 감사 레코드는 기존 스키마를 유지하기 위해 내부 `instagram_permissions_accepted=true`를 계속 포함한다.
 
-OAuth `state`에는 서명된 동의 스냅샷이 포함되어야 한다. 콜백은 다음 조건을 모두 만족할 때만 성공한다.
+Preview OAuth 검증에 필요한 최종 동의 버전:
+
+| 항목 | 버전 |
+| --- | --- |
+| Consent schema | `1` |
+| Terms | `influencer-v1.2-2026-08-26` |
+| Privacy | `privacy-2026-08-26-v3` |
+| Instagram permissions | `instagram-permissions-2026-08-26` |
+
+콜백은 다음 조건을 모두 만족할 때만 성공한다.
 
 - state HMAC 서명 유효
 - state TTL 유효
@@ -245,35 +180,7 @@ OAuth `state`에는 서명된 동의 스냅샷이 포함되어야 한다. 콜백
 
 콜백 실패 시 토큰이나 세션을 남기지 않는다.
 
-## 8. 법무/카피 경계
-
-Preview의 약관/개인정보/Instagram 권한 문구는 검증용 draft다. 화면 구조와 동작 검증에는 사용할 수 있지만, Production 전환 전에는 법무/개인정보 검토를 받아야 한다.
-
-현재 Preview 동의 버전:
-
-| 항목 | 버전 |
-|------|------|
-| Consent schema | `1` |
-| Terms | `preview-2026-08-26` |
-| Privacy | `preview-2026-08-26` |
-| Instagram permissions | `preview-2026-08-26` |
-
-## 9. 수동 GitHub Workflow
-
-워크플로우 파일은 `.github/workflows/manual-jobs.yml`이다.
-
-동작:
-
-- `workflow_dispatch`만 있다.
-- `schedule`은 없다.
-- `execute=false` 기본값에서는 테스트만 실행된다.
-- `execute=true`이고 `job=collect` 또는 `job=refresh`일 때만 `preview-db` environment의 승인/시크릿을 사용한다.
-
-GitHub는 workflow 파일이 기본 브랜치에 있어야 `workflow_dispatch`를 노출한다. 따라서 이 파일만 별도 PR/커밋으로 `main`에 반영하고, Vercel 앱 코드나 배포 설정은 Preview 검증 전 `main`에 합치지 않는다.
-
-Preview 검증 중에는 실제 수집/갱신 job을 실행하지 않는다. 필요해지면 보호된 GitHub environment 승인 뒤 수동으로 한 번만 실행한다.
-
-## 10. 배포와 Smoke Test
+## 8. 배포와 Smoke Test
 
 1. 브랜치 확인
 
@@ -317,7 +224,6 @@ curl -i https://<vercel-preview-host>/healthz
 
 - 보호된 Preview URL에서 `/Login` 접속
 - 소개 화면 제목이 `반응을 읽고, 선택의 기준을 만듭니다.`인지 확인
-- 본문이 한 줄 카피로 줄었는지 확인
 - `Instagram으로 계속하기` 선택 후 전체 페이지 약관/동의 화면으로 이동하는지 확인
 - 모바일 폭에서 줄간격, 터치 영역, 하단 CTA가 겹치지 않는지 확인
 - 보이는 필수 동의 3개 전에는 최종 OAuth 버튼이 비활성화되어 있는지 확인
@@ -346,18 +252,18 @@ curl -i https://<vercel-preview-host>/healthz
 - Dashboard를 40분 이상 열어 둔다.
 - 연결이 끊기거나 새로고침이 필요하면 재로그인 없이 `cl_session` 쿠키로 세션이 복원되는지 확인한다.
 
-## 11. 롤백
+## 9. 롤백
 
 Preview 검증 실패 시:
 
 1. Vercel Preview 배포를 비활성화하거나 해당 deployment를 삭제한다.
 2. Meta App Dashboard에서 Vercel Preview `/auth/callback` URI만 제거한다.
 3. 기존 Streamlit 운영 URI `/Login`은 유지한다.
-4. Preview Supabase에만 5.1의 rollback SQL을 실행한다.
+4. Preview Supabase 프로젝트는 폐기하거나, Preview DB에서 `supabase_schema.sql`로 만든 객체만 삭제한다.
 5. 운영 Supabase에는 아무 작업도 하지 않는다.
 6. GitHub 수동 workflow는 schedule이 없으므로 자동 실행 중단 작업은 없다.
 
-## 12. 완료 기준
+## 10. 완료 기준
 
 - Vercel Preview가 보호 설정 뒤에만 접근된다.
 - `/healthz`가 200을 반환한다.

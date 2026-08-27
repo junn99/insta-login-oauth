@@ -1,5 +1,5 @@
--- Preview onboarding consent transaction.
--- Apply only to the Preview Supabase project after confirming:
+-- Instagram onboarding consent transaction.
+-- Apply to the intended Supabase project after confirming:
 --   select current_setting('request.jwt.claim.role', true);
 --   select current_database();
 --
@@ -103,8 +103,8 @@ begin
   end if;
 
   if p_terms_version <> 'influencer-v1.2-2026-08-26'
-     or p_privacy_version <> 'preview-2026-08-26-privacy-v3'
-     or p_instagram_permissions_version <> 'preview-2026-08-26' then
+     or p_privacy_version <> 'privacy-2026-08-26-v3'
+     or p_instagram_permissions_version <> 'instagram-permissions-2026-08-26' then
     raise exception 'unsupported consent policy version' using errcode = '23514';
   end if;
 

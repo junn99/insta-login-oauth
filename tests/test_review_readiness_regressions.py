@@ -12,6 +12,9 @@ from requests import HTTPError
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PRIVACY_PAGE = PROJECT_ROOT / "pages" / "4_🔒_Privacy.py"
 DELETION_PAGE = PROJECT_ROOT / "pages" / "5_🗑️_Data-Deletion.py"
+APP_PAGE = PROJECT_ROOT / "app.py"
+MIGRATION = PROJECT_ROOT / "migrations" / "002_add_consent_onboarding_transaction.sql"
+SCHEMA = PROJECT_ROOT / "supabase_schema.sql"
 BINDING_ID = "browser-binding-id-1234567890"
 
 
@@ -49,15 +52,21 @@ class _MockResponse:
 
 
 def _accepted_consent_payload() -> dict:
+    from src.consent import (
+        INSTAGRAM_PERMISSIONS_VERSION,
+        PRIVACY_VERSION,
+        TERMS_VERSION,
+    )
+
     return {
         "accepted_at": "2026-08-26T03:00:00+00:00",
         "age_confirmed": True,
         "terms_accepted": True,
         "privacy_accepted": True,
         "instagram_permissions_accepted": True,
-        "terms_version": "influencer-v1.2-2026-08-26",
-        "privacy_version": "preview-2026-08-26-privacy-v3",
-        "instagram_permissions_version": "preview-2026-08-26",
+        "terms_version": TERMS_VERSION,
+        "privacy_version": PRIVACY_VERSION,
+        "instagram_permissions_version": INSTAGRAM_PERMISSIONS_VERSION,
     }
 
 
@@ -82,6 +91,98 @@ def test_privacy_no_encryption_overclaim():
 
     assert "암호화 저장" not in privacy
     assert "stored encrypted" not in privacy.lower()
+
+
+def test_consent_versions_are_production_neutral():
+    from src.consent import (
+        INSTAGRAM_PERMISSIONS_VERSION,
+        PRIVACY_VERSION,
+        TERMS_VERSION,
+    )
+
+    assert TERMS_VERSION == "influencer-v1.2-2026-08-26"
+    assert PRIVACY_VERSION == "privacy-2026-08-26-v3"
+    assert INSTAGRAM_PERMISSIONS_VERSION == "instagram-permissions-2026-08-26"
+
+
+def test_consent_versions_have_no_preview_prefix():
+    from src.consent import INSTAGRAM_PERMISSIONS_VERSION, PRIVACY_VERSION
+
+    assert not PRIVACY_VERSION.startswith("preview-")
+    assert not INSTAGRAM_PERMISSIONS_VERSION.startswith("preview-")
+
+
+def test_schema_uses_same_consent_versions_as_python_contract():
+    from src.consent import (
+        INSTAGRAM_PERMISSIONS_VERSION,
+        PRIVACY_VERSION,
+        TERMS_VERSION,
+    )
+
+    sql = _read_text(SCHEMA)
+
+    assert f"p_terms_version <> '{TERMS_VERSION}'" in sql
+    assert f"p_privacy_version <> '{PRIVACY_VERSION}'" in sql
+    assert (
+        f"p_instagram_permissions_version <> '{INSTAGRAM_PERMISSIONS_VERSION}'"
+        in sql
+    )
+
+
+def test_migration_uses_same_consent_versions_as_python_contract():
+    from src.consent import (
+        INSTAGRAM_PERMISSIONS_VERSION,
+        PRIVACY_VERSION,
+        TERMS_VERSION,
+    )
+
+    sql = _read_text(MIGRATION)
+
+    assert f"p_terms_version <> '{TERMS_VERSION}'" in sql
+    assert f"p_privacy_version <> '{PRIVACY_VERSION}'" in sql
+    assert (
+        f"p_instagram_permissions_version <> '{INSTAGRAM_PERMISSIONS_VERSION}'"
+        in sql
+    )
+
+
+def test_privacy_page_renders_canonical_final_privacy_policy():
+    privacy = _read_text(PRIVACY_PAGE)
+
+    assert "from src.consent import PRIVACY_POLICY_BODY" in privacy
+    assert "PRIVACY_POLICY_BODY" in privacy
+    assert "Preview 버전" not in privacy
+    assert "Preview 검증용" not in privacy
+    assert "정식 배포 전 법률 검토" not in privacy
+
+
+def test_data_deletion_page_uses_celeblife_identity():
+    deletion = _read_text(DELETION_PAGE)
+
+    assert "셀럽라이프" in deletion
+    assert "CelebLife" in deletion
+    assert "urlinsta" not in deletion
+
+
+def test_data_deletion_page_includes_final_contact_and_30_day_timeline():
+    deletion = _read_text(DELETION_PAGE)
+
+    assert "{config.CONTACT_EMAIL}" in deletion
+    assert "30일 이내" in deletion
+    assert "within **30 days**" in deletion
+
+
+def test_vercel_production_copy_is_distinct_from_preview_copy():
+    app_source = _read_text(APP_PAGE)
+
+    assert "if config.is_vercel_preview():" in app_source
+    assert "elif config.IS_VERCEL:" in app_source
+    assert (
+        app_source.index("if config.is_vercel_preview():")
+        < app_source.index("Preview에서는 자동 수집이 비활성화되어 있습니다.")
+        < app_source.index("elif config.IS_VERCEL:")
+        < app_source.index("Vercel 배포에서는 자동 수집이 비활성화되어 있습니다.")
+    )
 
 
 def test_oauth_state_signing_and_tamper(monkeypatch):
@@ -148,8 +249,8 @@ def test_parse_state_returns_typed_consent_acceptance(monkeypatch):
     assert parsed.privacy_accepted is True
     assert parsed.instagram_permissions_accepted is True
     assert parsed.terms_version == "influencer-v1.2-2026-08-26"
-    assert parsed.privacy_version == "preview-2026-08-26-privacy-v3"
-    assert parsed.instagram_permissions_version == "preview-2026-08-26"
+    assert parsed.privacy_version == "privacy-2026-08-26-v3"
+    assert parsed.instagram_permissions_version == "instagram-permissions-2026-08-26"
 
 
 def test_parse_state_rejects_missing_required_consent(monkeypatch):

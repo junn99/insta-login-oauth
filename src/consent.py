@@ -11,8 +11,8 @@ from typing import Any
 
 CONSENT_SCHEMA_VERSION = 1
 TERMS_VERSION = "influencer-v1.2-2026-08-26"
-PRIVACY_VERSION = "preview-2026-08-26-privacy-v3"
-INSTAGRAM_PERMISSIONS_VERSION = "preview-2026-08-26"
+PRIVACY_VERSION = "privacy-2026-08-26-v3"
+INSTAGRAM_PERMISSIONS_VERSION = "instagram-permissions-2026-08-26"
 CONSENT_STATE_KEYS = frozenset(
     {
         "v",
@@ -453,6 +453,8 @@ Instagram 계정 연결 해제
 )
 
 CONSENT_ITEMS = CONSENT_COPY
+CONSENT_COPY_BY_KEY = {item.key: item for item in CONSENT_COPY}
+PRIVACY_POLICY_BODY = CONSENT_COPY_BY_KEY["privacy_accepted"].body
 CONSENT_KEYS = (
     "age_confirmed",
     "terms_accepted",

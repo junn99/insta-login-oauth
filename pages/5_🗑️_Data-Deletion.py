@@ -5,7 +5,7 @@ from src.config import config
 
 st.set_page_config(page_title="Data Deletion", page_icon="🗑️", layout="centered")
 
-st.title("🗑️ 데이터 삭제 안내 / Data Deletion Instructions")
+st.title("🗑️ 셀럽라이프 데이터 삭제 안내 / Data Deletion Instructions")
 
 st.markdown("---")
 
@@ -29,9 +29,9 @@ Follow these steps to remove this app's access from your Instagram Settings:
    - **앱 및 웹사이트** 클릭
    - Click **Apps and Websites**
 
-4. **본 앱을 찾아 제거**합니다 / **Find and remove this app**
-   - 활성 앱 목록에서 **urlinsta** (또는 본 앱 이름)를 찾습니다
-   - Find **urlinsta** (or this app's name) in the Active apps list
+4. **셀럽라이프 앱을 찾아 제거**합니다 / **Find and remove CelebLife**
+   - 활성 앱 목록에서 **셀럽라이프** 또는 **CelebLife**를 찾습니다
+   - Find **셀럽라이프** or **CelebLife** in the Active apps list
    - **제거** 버튼을 클릭합니다 / Click the **Remove** button
    - 확인 대화상자에서 제거를 확인합니다 / Confirm removal in the dialog
 """)
@@ -41,15 +41,19 @@ st.markdown("---")
 # Section 2: Request Data Deletion
 st.subheader("2. 데이터 삭제 요청 / Request Data Deletion")
 st.markdown(f"""
-앱을 제거한 후, 저장된 데이터의 완전한 삭제를 요청할 수 있습니다:
+앱 연결 해제와 별도로, 셀럽라이프에 저장된 개인정보 삭제를 요청할 수 있습니다:
 
-After removing the app, you can request complete deletion of your stored data:
+Separately from removing app access, you can request deletion of personal data stored by CelebLife:
 
 - **이메일 / Email:** {config.CONTACT_EMAIL}
 - **제목 / Subject:** "데이터 삭제 요청 / Data Deletion Request"
 - **본문에 포함할 내용 / Include in body:**
   - 인스타그램 사용자명 / Your Instagram username
   - 요청 내용: 모든 데이터 삭제 / Request: Delete all my data
+
+삭제 요청은 특별한 사유가 없는 한 30일 이내 처리합니다.
+
+Deletion requests are processed within 30 days unless a legally required retention period applies.
 """)
 
 st.markdown("---")
@@ -57,9 +61,9 @@ st.markdown("---")
 # Section 3: What Gets Deleted
 st.subheader("3. 삭제되는 데이터 / What Gets Deleted")
 st.markdown("""
-삭제 요청 시 다음 데이터가 영구적으로 삭제됩니다:
+삭제 요청 시 관계 법령상 보관이 필요한 정보를 제외하고 다음 데이터가 삭제됩니다:
 
-The following data will be permanently deleted upon request:
+The following data will be deleted upon request, except data that must be retained under applicable law:
 
 - **계정 정보** / Account information
   - 인스타그램 비즈니스 계정 ID, 사용자명, 표시 이름 / Instagram Business Account ID, username, display name
@@ -82,8 +86,8 @@ st.markdown("""
 - **Instagram 앱 제거 시:** 본 앱의 접근 권한이 **즉시** 중단됩니다
   / **Upon app removal:** This app's access is revoked **immediately**
 
-- **데이터 삭제 요청 시:** 요청일로부터 **30일 이내**에 모든 데이터가 영구 삭제됩니다
-  / **Upon deletion request:** All data will be permanently deleted within **30 days** of the request
+- **데이터 삭제 요청 시:** 특별한 사유가 없는 한 요청일로부터 **30일 이내**에 처리됩니다
+  / **Upon deletion request:** Requests are processed within **30 days** unless an exception applies
 
 - **삭제 완료 후:** 이메일로 삭제 완료 확인을 발송합니다
   / **After deletion:** A confirmation email will be sent upon completion
