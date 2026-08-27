@@ -61,6 +61,38 @@ def _vercel_oauth_redirect_error(uri: str) -> str | None:
     return None
 
 
+def _supabase_project_url_error(uri: str) -> str | None:
+    """Return a Supabase project URL error label, or None when valid."""
+    try:
+        parsed = urlsplit(uri)
+    except ValueError:
+        return "SUPABASE_URL (must be https://<project-ref>.supabase.co)"
+
+    try:
+        port = parsed.port
+    except ValueError:
+        return "SUPABASE_URL (must be https://<project-ref>.supabase.co)"
+
+    host = parsed.hostname or ""
+    project_ref = host.removesuffix(".supabase.co")
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+        or port is not None
+        or parsed.username is not None
+        or parsed.password is not None
+        or not host.endswith(".supabase.co")
+        or not project_ref
+        or "." in project_ref
+    ):
+        return "SUPABASE_URL (must be https://<project-ref>.supabase.co)"
+
+    return None
+
+
 class Config:
     """Application configuration from environment variables."""
 
@@ -76,6 +108,9 @@ class Config:
     SUPABASE_PREVIEW_PROJECT_REF: str = os.getenv("SUPABASE_PREVIEW_PROJECT_REF", "")
     SUPABASE_PRODUCTION_PROJECT_REF: str = os.getenv(
         "SUPABASE_PRODUCTION_PROJECT_REF", ""
+    )
+    ALLOW_SHARED_SUPABASE_IN_PREVIEW: bool = _env_flag(
+        "ALLOW_SHARED_SUPABASE_IN_PREVIEW"
     )
 
     # Deployment runtime
@@ -147,6 +182,11 @@ class Config:
     def validate_preview_supabase_project(cls) -> list[str]:
         """Fail closed unless Vercel Preview points at the Preview Supabase project."""
         errors: list[str] = []
+
+        if cls.ALLOW_SHARED_SUPABASE_IN_PREVIEW:
+            shared_url_error = _supabase_project_url_error(cls.SUPABASE_URL)
+            return [shared_url_error] if shared_url_error else errors
+
         preview_ref = cls.SUPABASE_PREVIEW_PROJECT_REF.strip()
         production_ref = cls.SUPABASE_PRODUCTION_PROJECT_REF.strip()
 

@@ -119,6 +119,128 @@ def test_vercel_runtime_requires_https_auth_callback_redirect(monkeypatch):
     assert error not in Config.validate_runtime()
 
 
+def test_vercel_preview_supabase_isolation_fails_closed_by_default(monkeypatch):
+    from src.config import Config
+
+    monkeypatch.setattr(Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        Config, "ALLOW_SHARED_SUPABASE_IN_PREVIEW", False, raising=False
+    )
+    monkeypatch.setattr(Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_ID", "app-id", raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_SECRET", "app-secret", raising=False)
+    monkeypatch.setattr(
+        Config, "OAUTH_REDIRECT_URI", "https://preview.example/auth/callback", raising=False
+    )
+    monkeypatch.setattr(Config, "CONTACT_EMAIL", "reviewer@example.com", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_URL", "https://prodref.supabase.co", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_KEY", "sb_secret_server", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PREVIEW_PROJECT_REF", "", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PRODUCTION_PROJECT_REF", "", raising=False)
+
+    errors = Config.validate_runtime()
+
+    assert "SUPABASE_PREVIEW_PROJECT_REF" in errors
+    assert "SUPABASE_PRODUCTION_PROJECT_REF" in errors
+
+
+def test_vercel_preview_allows_shared_supabase_with_explicit_opt_in(monkeypatch):
+    from src.config import Config
+
+    monkeypatch.setattr(Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        Config, "ALLOW_SHARED_SUPABASE_IN_PREVIEW", True, raising=False
+    )
+    monkeypatch.setattr(Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_ID", "app-id", raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_SECRET", "app-secret", raising=False)
+    monkeypatch.setattr(
+        Config, "OAUTH_REDIRECT_URI", "https://preview.example/auth/callback", raising=False
+    )
+    monkeypatch.setattr(Config, "CONTACT_EMAIL", "reviewer@example.com", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_URL", "https://prodref.supabase.co", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_KEY", "sb_secret_server", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PREVIEW_PROJECT_REF", "", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PRODUCTION_PROJECT_REF", "", raising=False)
+
+    errors = Config.validate_runtime()
+
+    assert errors == []
+    assert Config.preview_safe_mode() is True
+
+
+def test_vercel_preview_shared_supabase_rejects_non_project_urls(monkeypatch):
+    from src.config import Config
+
+    monkeypatch.setattr(Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        Config, "ALLOW_SHARED_SUPABASE_IN_PREVIEW", True, raising=False
+    )
+    monkeypatch.setattr(Config, "SESSION_COOKIE_SECRET", "s" * 32, raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_ID", "app-id", raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_SECRET", "app-secret", raising=False)
+    monkeypatch.setattr(
+        Config, "OAUTH_REDIRECT_URI", "https://preview.example/auth/callback", raising=False
+    )
+    monkeypatch.setattr(Config, "CONTACT_EMAIL", "reviewer@example.com", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_KEY", "sb_secret_server", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PREVIEW_PROJECT_REF", "", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PRODUCTION_PROJECT_REF", "", raising=False)
+
+    error = "SUPABASE_URL (must be https://<project-ref>.supabase.co)"
+    for invalid_url in (
+        "https://example.com",
+        "http://prodref.supabase.co",
+        "https://api.supabase.com",
+        "https://prodref.supabase.co/rest/v1",
+        "https://prodref.supabase.co:443",
+        "https://prodref.supabase.co:bad",
+        "https://user@prodref.supabase.co",
+        "https://user:pass@prodref.supabase.co",
+        "not a url",
+    ):
+        monkeypatch.setattr(Config, "SUPABASE_URL", invalid_url, raising=False)
+        assert error in Config.validate_runtime()
+
+    monkeypatch.setattr(Config, "SUPABASE_URL", "https://prodref.supabase.co", raising=False)
+    assert error not in Config.validate_runtime()
+
+
+def test_vercel_preview_shared_supabase_still_requires_base_security(monkeypatch):
+    from src.config import Config
+
+    monkeypatch.setattr(Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        Config, "ALLOW_SHARED_SUPABASE_IN_PREVIEW", True, raising=False
+    )
+    monkeypatch.setattr(Config, "SESSION_COOKIE_SECRET", "short", raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_ID", "app-id", raising=False)
+    monkeypatch.setattr(Config, "INSTAGRAM_APP_SECRET", "app-secret", raising=False)
+    monkeypatch.setattr(
+        Config, "OAUTH_REDIRECT_URI", "http://preview.example/auth/callback", raising=False
+    )
+    monkeypatch.setattr(Config, "CONTACT_EMAIL", "reviewer@example.com", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_URL", "https://prodref.supabase.co", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_KEY", "sb_publishable_public", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PREVIEW_PROJECT_REF", "", raising=False)
+    monkeypatch.setattr(Config, "SUPABASE_PRODUCTION_PROJECT_REF", "", raising=False)
+
+    errors = Config.validate_runtime()
+
+    assert "SESSION_COOKIE_SECRET (minimum 32 bytes)" in errors
+    assert (
+        "OAUTH_REDIRECT_URI (Vercel must be https://<host>/auth/callback)"
+        in errors
+    )
+    assert "SUPABASE_KEY (secret/service_role required)" in errors
+    assert "SUPABASE_PREVIEW_PROJECT_REF" not in errors
+    assert "SUPABASE_PRODUCTION_PROJECT_REF" not in errors
+
+
 def test_non_vercel_allows_existing_login_redirect_compatibility(monkeypatch):
     from src.config import Config
 

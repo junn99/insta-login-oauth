@@ -1,6 +1,6 @@
 # Vercel Preview Runbook
 
-> 목적: 기존 Streamlit 운영 배포와 운영 Supabase는 그대로 두고, `codex/vercel-preview` 브랜치를 Vercel 보호 Preview와 별도 Preview Supabase에서 검증한다. 이 문서는 Production 전환 절차가 아니다.
+> 목적: 기존 Streamlit 운영 배포는 그대로 두고, `codex/vercel-preview` 브랜치를 Vercel 보호 Preview에서 검증한다. DB는 기본적으로 별도 Preview Supabase를 권장하지만, 명시적 opt-in이 있으면 기존 Supabase를 공유해 OAuth 화면과 콜백까지 확인할 수 있다. 이 문서는 Production 전환 절차가 아니다.
 
 ## 1. 배포 경계
 
@@ -13,7 +13,7 @@
 | Vercel 엔트리포인트 | `asgi:app` (`pyproject.toml`) |
 | Vercel 설정 | `vercel.json`은 스키마만 두고 Python framework detection 사용 |
 | 추가 HTTP 라우트 | `/auth/instagram/start`, `/auth/callback`, `/auth/logout`, `/healthz` |
-| DB 변경 | 새 Preview Supabase에만 `supabase_schema.sql` 1회 실행 |
+| DB 변경 | 기본값은 별도 Preview Supabase. 기존 Supabase 공유 시 preflight 후 `migrations/001`, `migrations/002`만 적용 |
 | 운영 전환 | 하지 않음 |
 
 Evidence boundary:
@@ -24,7 +24,9 @@ Evidence boundary:
 
 ## 2. Preview 환경 변수
 
-Vercel Project의 Preview 환경에만 아래 값을 넣는다. 운영 Supabase URL이나 운영 service role key를 Preview 환경에 넣지 않는다.
+Vercel Project의 Preview 환경에만 아래 값을 넣는다.
+
+기본 모드는 별도 Preview Supabase 격리다. 기존 Supabase를 공유하려면 `ALLOW_SHARED_SUPABASE_IN_PREVIEW=true`를 명시적으로 넣는다. 이 경우 Supabase URL/key는 기존 Streamlit과 같은 값을 써도 되지만, `OAUTH_REDIRECT_URI`는 반드시 Vercel Preview 전용 `/auth/callback` 값이어야 한다.
 
 | 이름 | 값 | 비밀값 | 검증 기준 |
 | --- | --- | --- | --- |
@@ -32,10 +34,11 @@ Vercel Project의 Preview 환경에만 아래 값을 넣는다. 운영 Supabase 
 | `INSTAGRAM_APP_SECRET` | Meta Instagram 앱 secret | 예 | Vercel에만 입력 |
 | `OAUTH_REDIRECT_URI` | `https://<vercel-preview-host>/auth/callback` | 아니오 | Meta Redirect URI와 정확히 일치 |
 | `CONTACT_EMAIL` | 운영 문의 이메일 | 아니오 | 개인정보/삭제 안내와 일치 |
-| `SUPABASE_URL` | Preview Supabase URL | 아니오 | `https://<SUPABASE_PREVIEW_PROJECT_REF>.supabase.co` |
-| `SUPABASE_KEY` | Preview Supabase secret/service role key | 예 | `sb_secret_...` 또는 JWT `role=service_role` |
-| `SUPABASE_PREVIEW_PROJECT_REF` | Preview Supabase project ref | 아니오 | Production ref와 다름 |
-| `SUPABASE_PRODUCTION_PROJECT_REF` | Production Supabase project ref | 아니오 | Preview ref와 다름 |
+| `SUPABASE_URL` | Supabase URL | 아니오 | 격리 모드: `https://<SUPABASE_PREVIEW_PROJECT_REF>.supabase.co`, 공유 모드: 기존 Supabase URL 허용 |
+| `SUPABASE_KEY` | Supabase secret/service role key | 예 | `sb_secret_...` 또는 JWT `role=service_role` |
+| `SUPABASE_PREVIEW_PROJECT_REF` | Preview Supabase project ref | 아니오 | 격리 모드 필수, 공유 모드 불필요 |
+| `SUPABASE_PRODUCTION_PROJECT_REF` | Production Supabase project ref | 아니오 | 격리 모드 필수, 공유 모드 불필요 |
+| `ALLOW_SHARED_SUPABASE_IN_PREVIEW` | `false` 또는 `true` | 아니오 | 기본 `false`; 기존 Supabase 공유 시에만 `true` |
 | `SESSION_COOKIE_SECRET` | 32바이트 이상 랜덤 문자열 | 예 | 길이 32바이트 이상 |
 | `PREVIEW_SAFE_MODE` | `true` | 아니오 | Preview에서는 쓰기/수집 안전모드 강제 |
 
@@ -73,11 +76,11 @@ Preview 배포에는 Vercel Authentication을 켠다. 보호 설정 전에는 OA
 - 보호 통과 후 `/Login` 페이지가 보인다.
 - 보호를 우회하는 공개 Preview URL을 공유하지 않는다.
 
-## 5. Supabase Preview 준비
+## 5. Supabase 준비
 
-Preview OAuth는 별도 Preview Supabase에서만 검증한다. 운영 Supabase에는 이 섹션의 SQL을 실행하지 않는다.
+### 5.1 별도 Preview Supabase 사용
 
-새 Preview Supabase 프로젝트의 SQL Editor에서 canonical schema를 한 번 실행한다.
+새 Preview Supabase 프로젝트를 만든 경우에만 SQL Editor에서 canonical schema를 한 번 실행한다.
 
 ```text
 supabase_schema.sql
@@ -90,6 +93,63 @@ supabase_schema.sql
 - `tokens(user_id, token_type)` unique constraint
 - service role 전용 RLS 정책
 - `complete_instagram_onboarding` RPC
+
+### 5.2 기존 Supabase 공유 사용
+
+기존 Streamlit이 쓰는 Supabase를 그대로 Preview에 연결할 수 있다. 단, Vercel Preview 환경변수에 아래 조건을 같이 맞춘다.
+
+- `ALLOW_SHARED_SUPABASE_IN_PREVIEW=true`
+- `SUPABASE_URL`과 `SUPABASE_KEY`는 기존 Streamlit과 같은 값 사용 가능
+- `SUPABASE_KEY`는 anon/publishable key가 아니라 secret/service role key
+- `OAUTH_REDIRECT_URI`는 기존 Streamlit `/Login`이 아니라 Vercel Preview `https://<vercel-preview-host>/auth/callback`
+- `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`은 기존 Meta 앱 값과 같아도 됨
+
+기존 Supabase 공유 모드에서는 `supabase_schema.sql`을 다시 실행하지 않는다. 이미 있는 테이블을 통째로 다시 만들려는 목적의 파일이라 운영/기존 프로젝트에는 맞지 않는다.
+
+대신 아래 preflight를 먼저 실행한 뒤, 필요한 경우에만 migration을 순서대로 적용한다.
+
+- `migrations/001_scope_rls_to_service_role.sql`
+- `migrations/002_add_consent_onboarding_transaction.sql`
+
+공유 DB preflight:
+
+```sql
+SELECT to_regclass('public.users') AS users_table,
+       to_regclass('public.tokens') AS tokens_table,
+       to_regclass('public.insights') AS insights_table,
+       to_regclass('public.audience_data') AS audience_data_table,
+       to_regclass('public.collection_log') AS collection_log_table,
+       to_regclass('public.user_consents') AS user_consents_table;
+
+SELECT user_id, token_type, COUNT(*) AS count
+FROM public.tokens
+GROUP BY user_id, token_type
+HAVING COUNT(*) > 1;
+
+SELECT constraint_name
+FROM information_schema.table_constraints
+WHERE table_schema = 'public'
+  AND table_name = 'tokens'
+  AND constraint_name = 'tokens_user_type_unique'
+  AND constraint_type = 'UNIQUE';
+
+SELECT tablename, policyname, roles, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+ORDER BY tablename, policyname;
+
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_name = 'complete_instagram_onboarding';
+```
+
+판단 기준:
+
+- 기존 기본 테이블이 없으면 공유 DB로 쓰지 않는다.
+- duplicate token 행이 나오면 `002` 적용 전에 수동 정리가 필요하다.
+- RLS 정책이 `{public}`, `anon`, `authenticated`에 열려 있으면 `001` 적용을 먼저 검토한다.
+- `user_consents`, `complete_instagram_onboarding`, `tokens_user_type_unique`가 없으면 `002`가 필요하다.
 
 적용 후 smoke 확인:
 

@@ -32,7 +32,9 @@ Vercel Project의 Production 환경에 아래 값을 넣는다. Preview 값과 �
 | `SUPABASE_KEY` | 운영 Supabase secret/service role key | 예 | `sb_secret_...` 또는 JWT `role=service_role` |
 | `SESSION_COOKIE_SECRET` | 32바이트 이상 랜덤 문자열 | 예 | Preview 값과 달라야 함, 길이 32바이트 이상 |
 
-`SUPABASE_PREVIEW_PROJECT_REF`, `SUPABASE_PRODUCTION_PROJECT_REF`, `PREVIEW_SAFE_MODE`는 Preview 격리 검증용이다. Production 필수 환경 변수로 등록하지 않는다.
+`SUPABASE_PREVIEW_PROJECT_REF`, `SUPABASE_PRODUCTION_PROJECT_REF`, `ALLOW_SHARED_SUPABASE_IN_PREVIEW`, `PREVIEW_SAFE_MODE`는 Preview 검증용이다. Production 필수 환경 변수로 등록하지 않는다.
+
+Preview에서 기존 Supabase를 공유해 검증했더라도 Production 환경 변수는 별도로 등록한다. Supabase URL/key 자체는 같은 운영 DB 값을 재사용할 수 있지만, `OAUTH_REDIRECT_URI`는 Production host의 `/auth/callback`으로 바뀌어야 한다.
 
 현재 Vercel Project API 값은 `installCommand=null`, `buildCommand=null`이다. `vercel project inspect` 화면에서 과거 `pip install -r requirements.txt`가 보이더라도 API 값이 null이면 정리할 항목은 없다. API 값이 non-null로 바뀐 경우에만 stale install command를 제거한다. 이 프로젝트는 `requirements.txt`가 아니라 `pyproject.toml`/`uv.lock`과 `[tool.vercel] entrypoint = "asgi:app"`를 기준으로 배포한다.
 
@@ -115,6 +117,7 @@ WHERE table_schema = 'public'
 - `user_consents`와 RPC가 없고 duplicate token도 없으면, 운영 DB에는 pending `001`/`002` 순서로 적용한다.
 - `002`가 이미 적용된 흔적이 있고 버전 문자열만 이전 Preview 값이면, 새 `003` migration으로 RPC의 허용 버전만 최종 값으로 갱신한다.
 - 적용 상태가 불명확하면 Production 전환을 중단하고 DB snapshot/backup 이후 별도 복구 가능한 migration을 작성한다.
+- 운영/기존 Supabase에는 `supabase_schema.sql`을 다시 실행하지 않는다. 기존 DB는 preflight 후 `migrations/001_scope_rls_to_service_role.sql`, `migrations/002_add_consent_onboarding_transaction.sql`만 필요한 순서대로 적용한다.
 
 Production OAuth 검증에 필요한 최종 동의 버전은 다음 값이어야 한다.
 
