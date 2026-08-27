@@ -613,6 +613,62 @@ def test_preview_missing_config_login_renders_disabled_ui_without_oauth_or_db(
     assert 'href="#"' not in html
 
 
+def test_preview_missing_config_logs_error_labels_without_secret_values(
+    login_patches,
+    monkeypatch,
+    caplog,
+):
+    import src.config as config_module
+
+    secret_value = "test-app-secret-value"
+    supabase_key_value = "test-supabase-secret-key"
+    missing_labels = ["INSTAGRAM_APP_SECRET", "SUPABASE_KEY"]
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        config_module.Config,
+        "INSTAGRAM_APP_SECRET",
+        secret_value,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.Config,
+        "SUPABASE_KEY",
+        supabase_key_value,
+        raising=False,
+    )
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "preview", raising=False)
+    monkeypatch.setattr(
+        config_module.config,
+        "INSTAGRAM_APP_SECRET",
+        secret_value,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "SUPABASE_KEY",
+        supabase_key_value,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        config_module.config,
+        "validate_runtime",
+        lambda: missing_labels,
+        raising=False,
+    )
+
+    with caplog.at_level("WARNING"):
+        app = _run_app({"step": "consent"})
+
+    assert not app.exception
+    assert "INSTAGRAM_APP_SECRET" in caplog.text
+    assert "SUPABASE_KEY" in caplog.text
+    assert secret_value not in caplog.text
+    assert supabase_key_value not in caplog.text
+
+
 def test_preview_missing_config_consent_step_renders_without_oauth_or_db(
     login_patches,
     monkeypatch,

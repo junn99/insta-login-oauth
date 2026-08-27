@@ -105,6 +105,10 @@ missing = config.validate_runtime()
 preview_ui_only = config.is_vercel_preview() and bool(missing)
 
 if preview_ui_only:
+    logger.warning(
+        "Vercel Preview login is running without complete runtime configuration: %s",
+        ", ".join(sorted(missing)),
+    )
     if st.query_params.get("step") == "consent":
         render_consent_page(
             oauth_url=None,
