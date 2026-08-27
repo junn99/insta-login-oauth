@@ -19,11 +19,13 @@ from src.consent_binding import (
     verify_binding_token,
 )
 from src.database import init_db
-from src.oauth_callback_service import OnboardingPersistenceError, complete_instagram_login
+from src.oauth_callback_service import (
+    OnboardingPersistenceError,
+    complete_instagram_login,
+)
 from src.permission_badge import show_permission_badge
 from src.ui.celeblife_login import (
     render_consent_page,
-    render_instagram_preview_page,
     render_login_page,
 )
 
@@ -108,10 +110,7 @@ if preview_ui_only:
             oauth_url=None,
             privacy_url="/Privacy",
             oauth_disabled=True,
-            preview_next_url="/Login?step=instagram-preview",
         )
-    elif st.query_params.get("step") == "instagram-preview":
-        render_instagram_preview_page(back_url="/Login?step=consent")
     else:
         if (
             "code" in st.query_params
@@ -269,7 +268,6 @@ else:
             render_consent_page(
                 oauth_url=oauth_url,
                 privacy_url="/Privacy",
-                preview_next_url=None,
             )
         else:
             render_login_page(

@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOGIN_PAGE = PROJECT_ROOT / "pages" / "2_🔐_Login.py"
 ASSET_DIR = PROJECT_ROOT / "assets" / "login"
@@ -672,7 +671,7 @@ def test_preview_missing_config_consent_step_renders_without_oauth_or_db(
     assert dict(app.query_params) == {"step": ["consent"]}
 
 
-def test_preview_missing_config_consent_step_links_to_preview_handoff(
+def test_preview_missing_config_consent_step_disables_oauth_handoff(
     login_patches,
     monkeypatch,
 ):
@@ -701,14 +700,19 @@ def test_preview_missing_config_consent_step_links_to_preview_handoff(
     for checkbox in app.checkbox:
         checkbox.check()
     app = app.run()
+    html = _all_markdown(app)
 
+    assert not app.exception
+    assert not _link_buttons(app)
     assert any(
-        button.url == "/Login?step=instagram-preview"
-        for button in _link_buttons(app)
+        button.label == "동의하고 Instagram으로 계속하기" and button.disabled
+        for button in app.button
     )
+    assert "/Login?step=instagram-preview" not in html
+    assert "Instagram 로그인 화면 미리보기" not in html
 
 
-def test_preview_missing_config_instagram_preview_step_renders_mock_handoff(
+def test_preview_missing_config_instagram_preview_query_does_not_render_mock(
     login_patches,
     monkeypatch,
 ):
@@ -737,10 +741,11 @@ def test_preview_missing_config_instagram_preview_step_renders_mock_handoff(
     html = _all_markdown(app)
 
     assert not app.exception
-    assert "Instagram 로그인 화면 미리보기" in html
-    assert "실제 인증과 권한 화면은 Meta가 호스팅합니다." in html
-    assert "동의 화면으로 돌아가기" in html
+    assert "Instagram 로그인 화면 미리보기" not in html
+    assert "실제 인증과 권한 화면은 Meta가 호스팅합니다." not in html
+    assert "동의 화면으로 돌아가기" not in html
     assert 'href="/Login?step=consent"' in html
+    assert "/Login?step=instagram-preview" not in html
 
 
 def test_render_login_page_routes_to_consent_when_oauth_url_is_missing(monkeypatch):

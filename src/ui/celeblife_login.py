@@ -43,7 +43,6 @@ import streamlit as st
 
 from src.consent import CONSENT_ITEMS, all_required_accepted
 
-
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ASSET_DIR = ROOT_DIR / "assets" / "login"
 
@@ -1094,194 +1093,6 @@ def render_login_page(
     st.markdown(_compact_html(styles + markup), unsafe_allow_html=True)
 
 
-def render_instagram_preview_page(*, back_url: str = "/Login?step=consent") -> None:
-    """Render a Preview-only mock of the next Instagram handoff screen."""
-
-    logo_uri = _data_uri(ASSET_DIR / "celeblife_logo_purple.png")
-    symbol_uri = _data_uri(ASSET_DIR / "celeblife_symbol_purple.png")
-    styles = _STYLE_TEMPLATE.substitute(
-        logo_uri=logo_uri,
-        symbol_uri=symbol_uri,
-        logo_ratio=LOGO_ASPECT_RATIO,
-        font_stack=FONT_STACK,
-    )
-
-    preview_styles = """
-        <style>
-        .cl-login-page.cl-preview-page {
-          position: relative !important;
-          inset: auto !important;
-          z-index: auto !important;
-          display: block !important;
-          min-height: 100vh !important;
-          min-height: 100dvh !important;
-          overflow: visible !important;
-          background:
-            radial-gradient(circle at 50% 18%, rgba(125, 79, 222, 0.07), transparent 28%),
-            #ffffff !important;
-        }
-        .cl-preview-page .cl-visual-panel { display: none !important; }
-        .cl-preview-page .cl-form-panel {
-          width: min(100%, 560px) !important;
-          min-height: auto !important;
-          margin: 0 auto !important;
-          padding: max(18px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom)) !important;
-          align-items: flex-start !important;
-        }
-        .cl-preview-page .cl-form-card {
-          max-width: none !important;
-          min-height: auto !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-        }
-        .cl-preview-page .cl-form-title {
-          line-height: 1.34 !important;
-        }
-        .cl-preview-page .cl-lead {
-          margin-top: 14px !important;
-          line-height: 1.78 !important;
-        }
-        .cl-preview-shell {
-          display: grid;
-          gap: 16px;
-          margin-top: 22px;
-        }
-        .cl-preview-card {
-          padding: 18px 18px 16px;
-          border: 1px solid rgba(125, 79, 222, 0.14);
-          border-radius: 18px;
-          background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
-          box-shadow: 0 16px 36px rgba(75, 51, 131, 0.08);
-        }
-        .cl-preview-card__kicker {
-          margin: 0 0 8px;
-          color: #7d4fde;
-          font-size: 11px;
-          font-weight: 780;
-          letter-spacing: 0.12em;
-        }
-        .cl-preview-card__title {
-          margin: 0;
-          color: #171321;
-          font-size: 20px;
-          font-weight: 820;
-          line-height: 1.34;
-          word-break: keep-all;
-        }
-        .cl-preview-card__body {
-          margin: 10px 0 0;
-          color: #5e5870;
-          font-size: 14.5px;
-          line-height: 1.78;
-          word-break: keep-all;
-        }
-        .cl-preview-steps {
-          display: grid;
-          gap: 10px;
-          margin: 16px 0 0;
-          padding: 0;
-          list-style: none;
-        }
-        .cl-preview-steps li {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          color: #312b40;
-          font-size: 14px;
-          line-height: 1.6;
-        }
-        .cl-preview-bullet {
-          display: inline-grid;
-          flex: 0 0 auto;
-          place-items: center;
-          width: 22px;
-          height: 22px;
-          border-radius: 999px;
-          background: rgba(125, 79, 222, 0.1);
-          color: #7d4fde;
-          font-size: 13px;
-          font-weight: 800;
-        }
-        .cl-preview-note {
-          margin: 0;
-          color: #756f80;
-          font-size: 12.5px;
-          line-height: 1.72;
-        }
-        .cl-preview-actions {
-          margin-top: 10px;
-        }
-        .cl-preview-page .cl-instagram-button {
-          text-decoration: none !important;
-        }
-        @media (max-width: 420px) {
-          .cl-preview-page .cl-form-title {
-            font-size: 25px !important;
-            line-height: 1.42 !important;
-          }
-          .cl-preview-page .cl-lead {
-            font-size: 14.5px !important;
-            line-height: 1.86 !important;
-          }
-          .cl-preview-card {
-            padding: 16px 16px 14px;
-          }
-        }
-        </style>
-        """
-
-    styles = styles + preview_styles
-
-    back_href = html.escape(back_url, quote=True)
-    markup = f"""
-    <main class="cl-login-page cl-preview-page">
-      <section class="cl-form-panel" aria-labelledby="cl-preview-title">
-        <div class="cl-form-card">
-          <div class="cl-brand-mark" role="img" aria-label="CelebLife"></div>
-          <div>
-            <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
-            <p class="cl-form-title" id="cl-preview-title" role="heading" aria-level="1">
-              Instagram 로그인 화면 미리보기
-            </p>
-            <p class="cl-lead">
-              실제 인증과 권한 화면은 Meta가 호스팅합니다. Preview에서는 다음 단계의 흐름만 보여줍니다.
-            </p>
-          </div>
-
-          <div class="cl-preview-shell" aria-label="Preview-only Instagram handoff">
-            <div class="cl-preview-card">
-              <p class="cl-preview-card__kicker">NEXT STEP</p>
-              <p class="cl-preview-card__title">Instagram으로 연결하는 다음 화면</p>
-              <p class="cl-preview-card__body">
-                동의가 완료되면 실제 서비스에서는 Meta 로그인과 권한 승인 화면으로 이동합니다.
-                현재 Preview에서는 그 다음 화면을 로컬 미리보기로 보여줍니다.
-              </p>
-              <ul class="cl-preview-steps">
-                <li><span class="cl-preview-bullet">1</span><span>Instagram 계정으로 로그인</span></li>
-                <li><span class="cl-preview-bullet">2</span><span>연결할 계정과 권한 확인</span></li>
-                <li><span class="cl-preview-bullet">3</span><span>동의 후 CelebLife로 돌아오기</span></li>
-              </ul>
-            </div>
-
-            <p class="cl-preview-note">
-              실제 Meta 화면은 이 페이지 안에 렌더링되지 않습니다. 버튼 동작만 같은 흐름으로 확인할 수 있어요.
-            </p>
-          </div>
-
-          <div class="cl-actions cl-preview-actions">
-            <a class="cl-instagram-button" href="{back_href}" target="_self">
-              <span class="cl-instagram-icon">{_instagram_icon(21)}</span>
-              <span>동의 화면으로 돌아가기</span>
-            </a>
-          </div>
-        </div>
-      </section>
-    </main>
-    """
-
-    st.markdown(_compact_html(styles + markup), unsafe_allow_html=True)
-
-
 def _sync_all_consent() -> None:
     st.session_state.pop("cl_oauth_handoff_url", None)
     all_key = "cl_consent_all"
@@ -1787,7 +1598,6 @@ def render_consent_page(
     *,
     privacy_url: str = "/Privacy",
     oauth_disabled: bool = False,
-    preview_next_url: str | None = None,
 ) -> None:
     """Render the required consent step before the Instagram OAuth redirect."""
 
@@ -2393,12 +2203,9 @@ def render_consent_page(
         )
 
         accepted = all_required_accepted(consent_values)
-        final_url = oauth_url or preview_next_url
-        final_disabled = not accepted or (oauth_disabled and not preview_next_url) or (
-            not oauth_disabled and not oauth_url
-        )
+        final_disabled = not accepted or oauth_disabled or not oauth_url
 
-        if final_disabled or not final_url:
+        if final_disabled:
             st.button(
                 "동의하고 Instagram으로 계속하기",
                 key="cl_consent_submit_disabled",
@@ -2406,14 +2213,11 @@ def render_consent_page(
                 use_container_width=True,
             )
             if oauth_disabled or not oauth_url:
-                if preview_next_url:
-                    st.caption("Preview에서는 다음 화면 미리보기로 이동합니다.")
-                else:
-                    st.caption("Preview 설정이 없어 화면 확인만 가능합니다.")
+                st.caption("Preview 설정이 없어 화면 확인만 가능합니다.")
         else:
             st.link_button(
                 "동의하고 Instagram으로 계속하기",
-                final_url,
+                oauth_url,
                 key="cl_consent_submit_link",
                 type="primary",
                 use_container_width=True,
