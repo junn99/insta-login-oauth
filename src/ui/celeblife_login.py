@@ -328,8 +328,18 @@ _STYLE_TEMPLATE = Template(
       font-weight: 760;
       letter-spacing: -0.045em;
       line-height: 1.28;
-      text-wrap: balance;
       word-break: keep-all;
+    }
+
+    .cl-login-page .cl-hook-title {
+      display: flex;
+      flex-wrap: wrap;
+      column-gap: 0.24em;
+    }
+
+    .cl-login-page .cl-hook-line {
+      display: inline-block;
+      white-space: nowrap;
     }
 
     .cl-login-page .cl-lead {
@@ -1055,8 +1065,9 @@ def render_login_page(
 
           <div>
             <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
-            <p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">
-              반응을 읽고, 선택의 기준을 만듭니다.
+            <p class="cl-form-title cl-hook-title" id="cl-form-title" role="heading" aria-level="1">
+              <span class="cl-hook-line">반응을 읽고,</span>
+              <span class="cl-hook-line">선택의 기준을 만듭니다.</span>
             </p>
             <p class="cl-lead">
               채널 데이터를 분석해 맞는 제품과 판매 방향을 제안합니다.
@@ -1666,8 +1677,8 @@ def render_consent_page(
         .cl-login-page.cl-consent-page .cl-form-card .cl-brand-mark {
           display: block !important;
         }
-        .cl-login-page.cl-consent-page .cl-form-card .cl-eyebrow {
-          display: block !important;
+        .cl-consent-page .cl-consent-copy {
+          margin-top: 22px;
         }
         .cl-consent-page .cl-form-title { line-height: 1.4 !important; }
         .cl-consent-page .cl-lead {
@@ -1692,6 +1703,22 @@ def render_consent_page(
           line-height: 1.52;
           margin: 0;
           word-break: keep-all;
+        }
+        .st-key-cl-consent-shell [data-testid="stCheckbox"] input[type="checkbox"] {
+          accent-color: #7d4fde !important;
+        }
+        .st-key-cl-consent-shell [data-testid="stCheckbox"] label > div:first-of-type {
+          border-color: rgba(125, 79, 222, 0.42) !important;
+        }
+        .st-key-cl-consent-shell [data-testid="stCheckbox"] label > div:first-of-type svg {
+          color: #ffffff !important;
+        }
+        .st-key-cl-consent-shell [data-testid="stCheckbox"] label[data-selected] > div:first-of-type {
+          border-color: #7d4fde !important;
+          background-color: #7d4fde !important;
+        }
+        .st-key-cl-consent-shell [data-testid="stCheckbox"] label[data-focus-visible] > div:first-of-type {
+          box-shadow: 0 0 0 3px rgba(125, 79, 222, 0.22) !important;
         }
         .st-key-cl-consent-shell [class*="st-key-cl_consent_item_"] {
           margin-bottom: 0;
@@ -2054,8 +2081,54 @@ def render_consent_page(
         }
         .st-key-cl_consent_submit_disabled .stButton > button,
         .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a {
+          position: relative;
+          display: flex;
+          width: 100%;
           min-height: 60px;
+          align-items: center;
+          justify-content: center;
           margin-top: 12px;
+          border: 1px solid #7d4fde;
+          border-radius: 12px;
+          background: #7d4fde;
+          box-shadow: 0 14px 28px rgba(125, 79, 222, 0.24);
+          color: #ffffff !important;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 680;
+          letter-spacing: -0.02em;
+          text-decoration: none !important;
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease,
+            border-color 160ms ease,
+            background 160ms ease;
+        }
+        .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:visited {
+          color: #ffffff !important;
+        }
+        .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:active {
+          transform: scale(0.99);
+        }
+        .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:focus-visible {
+          outline: 3px solid rgba(125, 79, 222, 0.28);
+          outline-offset: 3px;
+        }
+        #root .stApp .st-key-cl_consent_submit_disabled .stButton > button {
+          border-color: rgba(125, 79, 222, 0.16) !important;
+          background: rgba(125, 79, 222, 0.1) !important;
+          box-shadow: none !important;
+          color: rgba(80, 62, 117, 0.62) !important;
+          cursor: not-allowed !important;
+          transform: none !important;
+        }
+        @media (hover: hover) {
+          .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:hover {
+            border-color: #6e3ed2;
+            background: #6e3ed2;
+            box-shadow: 0 16px 32px rgba(125, 79, 222, 0.3);
+            transform: translateY(-1px);
+          }
         }
         @media (max-width: 420px) {
           .st-key-cl-consent-shell {
@@ -2145,8 +2218,7 @@ def render_consent_page(
                   <section class="cl-form-panel" aria-labelledby="cl-consent-title">
                     <div class="cl-form-card">
                       <div class="cl-brand-mark" role="img" aria-label="CelebLife"></div>
-                      <div>
-                        <p class="cl-eyebrow">CELEBLIFE ONBOARDING</p>
+                      <div class="cl-consent-copy">
                         <p class="cl-form-title" id="cl-consent-title" role="heading" aria-level="1">
                           연결 전 동의가 필요해요
                         </p>

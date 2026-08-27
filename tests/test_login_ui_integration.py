@@ -149,9 +149,12 @@ def test_initial_login_page_renders_celeblife_ui_and_escapes_urls(login_patches)
     assert "Meta 공식 로그인 방식" in html
     assert "공식파트너" not in html
     assert "cl-login-page" in html
+    assert "cl-hook-title" in html
     assert "반응을 읽고," in html
     assert "선택의 기준을 만듭니다." in html
     assert "반응을 읽고,<br>" not in html
+    assert '<span class="cl-hook-line">반응을 읽고,</span>' in html
+    assert '<span class="cl-hook-line">선택의 기준을 만듭니다.</span>' in html
     assert "채널 데이터를 분석해 맞는 제품과 판매 방향을 제안합니다." in html
     assert "연결된 채널의 콘텐츠와 반응 데이터를 분석해" not in html
     assert "Instagram으로 계속하기" in html
@@ -217,8 +220,13 @@ def test_consent_step_renders_full_page_terms_gate(login_patches):
     assert "cl-consent-title" in html
     assert "st-key-cl-consent-shell" in html
     assert '<div class="cl-brand-mark" role="img" aria-label="CelebLife">' in html
-    assert "CELEBLIFE ONBOARDING" in html
+    assert "cl-consent-copy" in html
+    assert "CELEBLIFE ONBOARDING" not in html
     assert "max-width: 560px" in html
+    assert ".st-key-cl-consent-shell [data-testid=\"stCheckbox\"] input[type=" in html
+    assert "accent-color: #7d4fde !important;" in html
+    assert "background-color: #7d4fde !important;" in html
+    assert "#root .stApp .st-key-cl_consent_submit_disabled .stButton > button" in html
     assert "필수 동의를 확인한 뒤 Instagram 연결을 진행합니다." in html
     assert "동의 후 Instagram으로 계속하기" not in html
     assert "필수 항목에 모두 동의합니다." in labels
@@ -287,14 +295,27 @@ def test_consent_step_renders_full_page_terms_gate(login_patches):
         ".cl-login-page.cl-consent-page .cl-form-card .cl-brand-mark"
         in html
     )
-    assert (
-        ".cl-login-page.cl-consent-page .cl-form-card .cl-eyebrow"
-        in html
-    )
+    assert ".cl-consent-page .cl-consent-copy" in html
     assert html.count("display: block !important") >= 2
     assert ".st-key-cl_consent_submit_disabled .stButton > button" in html
     assert (
         ".st-key-cl_consent_submit_link [data-testid=\"stLinkButton\"] > a"
+        in html
+    )
+    assert (
+        ".st-key-cl_consent_submit_link [data-testid=\"stLinkButton\"] > a:hover"
+        in html
+    )
+    assert (
+        ".st-key-cl_consent_submit_link [data-testid=\"stLinkButton\"] > a:focus-visible"
+        in html
+    )
+    assert (
+        "[data-testid=\"stCheckbox\"] label[data-selected] > div:first-of-type"
+        in html
+    )
+    assert (
+        "[data-testid=\"stCheckbox\"] label[data-focus-visible] > div:first-of-type"
         in html
     )
     assert (
@@ -980,7 +1001,7 @@ def test_heading_elements_avoid_streamlit_custom_heading(login_patches):
 
     assert "<h1" not in html and "<h2" not in html
     for element in (
-        '<p class="cl-form-title" id="cl-form-title" role="heading" aria-level="1">',
+        '<p class="cl-form-title cl-hook-title" id="cl-form-title" role="heading" aria-level="1">',
         '<p class="cl-story-title" id="cl-story-title" role="heading" aria-level="2">',
     ):
         assert element in html, f"heading lost its role/id wiring: {element}"
