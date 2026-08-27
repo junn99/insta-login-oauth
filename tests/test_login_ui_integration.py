@@ -529,6 +529,27 @@ def test_consent_step_does_not_start_oauth_before_required_agreements(
     )
 
 
+def test_consent_step_after_required_agreements_links_to_instagram_oauth(
+    login_patches,
+):
+    app = _run_app({"step": "consent"})
+
+    for checkbox in app.checkbox:
+        checkbox.check()
+    app = app.run()
+    html = _all_markdown(app)
+    link_buttons = _link_buttons(app)
+
+    assert login_patches["calls"]["oauth_url"] == 1
+    assert len(link_buttons) == 1
+    assert link_buttons[0].label == "동의하고 Instagram으로 계속하기"
+    assert link_buttons[0].url == (
+        "https://instagram.example/oauth?next=/Login&state=a\"b&scope=x<y>"
+    )
+    assert "/Login?step=instagram-preview" not in html
+    assert "Instagram 로그인 화면 미리보기" not in html
+
+
 def test_consent_step_back_action_returns_to_intro_and_clears_state(login_patches):
     app = _run_app({"step": "consent"})
     html = _all_markdown(app)
