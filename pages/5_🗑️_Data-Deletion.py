@@ -1,6 +1,7 @@
 """Data Deletion Instructions page."""
 
 import streamlit as st
+
 from src.config import config
 
 st.set_page_config(page_title="Data Deletion", page_icon="🗑️", layout="centered")
