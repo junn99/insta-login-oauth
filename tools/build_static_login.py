@@ -153,7 +153,7 @@ def _static_consent_styles() -> str:
       display: inline-flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 4px;
+      gap: 8px;
       min-height: 44px;
       margin: 0 0 4px;
       padding: 0 4px;
@@ -249,7 +249,7 @@ def _static_consent_styles() -> str:
       align-items: flex-start;
       min-height: 48px;
       gap: 8px;
-      color: #17131f;
+      color: rgb(38, 39, 48);
       cursor: pointer;
       font-size: 14px;
       font-weight: 400;
@@ -326,7 +326,7 @@ def _static_consent_styles() -> str:
       min-height: 60px;
       align-items: center;
       justify-content: center;
-      margin-top: 12px;
+      margin-top: 16px;
       padding: 4px 12px;
       border: 1px solid #7d4fde;
       border-radius: 12px;

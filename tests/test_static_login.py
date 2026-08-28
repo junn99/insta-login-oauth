@@ -175,7 +175,7 @@ def test_static_history_deep_link_error_and_submit_contracts():
     assert len(back_buttons) == 1
     assert back_buttons[0].get("data-action") == "show-intro"
     assert '<span class="cl-consent-back-text">이전으로</span>' in html
-    assert "gap: 4px;" in html
+    assert "gap: 8px;" in html
 
     submit_buttons = [
         button
@@ -193,7 +193,7 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
     html = _generated_html()
 
     back = _css_block(html, ".cl-consent-back")
-    assert "gap: 4px;" in back
+    assert "gap: 8px;" in back
     assert "min-height: 44px;" in back
     assert "margin: 0 0 4px;" in back
     assert "font-size: 16px;" in back
@@ -256,7 +256,7 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
 
     submit = _css_block(html, ".cl-consent-submit")
     assert "min-height: 60px;" in submit
-    assert "margin-top: 12px;" in submit
+    assert "margin-top: 16px;" in submit
     assert "padding: 4px 12px;" in submit
     assert "font-size: 15px;" in submit
     assert "font-weight: 680;" in submit
