@@ -263,12 +263,15 @@ else:
             }
             oauth_url = None
             if all_required_accepted(consent_values):
-                oauth_url = st.session_state.get("cl_oauth_handoff_url")
-                if not oauth_url:
-                    binding_id = _current_binding_id()
-                    if binding_id:
-                        oauth_url = _build_oauth_url(binding_id)
-                        st.session_state["cl_oauth_handoff_url"] = oauth_url
+                if config.IS_VERCEL:
+                    oauth_url = "/auth/instagram/start"
+                else:
+                    oauth_url = st.session_state.get("cl_oauth_handoff_url")
+                    if not oauth_url:
+                        binding_id = _current_binding_id()
+                        if binding_id:
+                            oauth_url = _build_oauth_url(binding_id)
+                            st.session_state["cl_oauth_handoff_url"] = oauth_url
             render_consent_page(
                 oauth_url=oauth_url,
                 privacy_url="/Privacy",
@@ -278,9 +281,5 @@ else:
                 oauth_url=None,
                 back_url="/",
                 privacy_url="/Privacy",
-                continue_url=(
-                    "/auth/instagram/start"
-                    if config.IS_VERCEL
-                    else "/Login?step=consent"
-                ),
+                continue_url="/Login?step=consent",
             )

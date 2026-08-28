@@ -41,7 +41,7 @@ from string import Template
 
 import streamlit as st
 
-from src.consent import CONSENT_ITEMS, all_required_accepted
+from src.consent import CONSENT_ITEMS, CONSENT_KEYS, all_required_accepted
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 ASSET_DIR = ROOT_DIR / "assets" / "login"
@@ -2080,6 +2080,7 @@ def render_consent_page(
           background: #7d4fde;
         }
         .st-key-cl_consent_submit_disabled .stButton > button,
+        .cl-consent-post-form .cl-consent-submit,
         .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a {
           position: relative;
           display: flex;
@@ -2104,12 +2105,20 @@ def render_consent_page(
             border-color 160ms ease,
             background 160ms ease;
         }
+        .cl-consent-post-form {
+          margin: 0;
+        }
+        .cl-consent-post-form .cl-consent-submit {
+          font-family: inherit;
+        }
         .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:visited {
           color: #ffffff !important;
         }
+        .cl-consent-post-form .cl-consent-submit:active,
         .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:active {
           transform: scale(0.99);
         }
+        .cl-consent-post-form .cl-consent-submit:focus-visible,
         .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:focus-visible {
           outline: 3px solid rgba(125, 79, 222, 0.28);
           outline-offset: 3px;
@@ -2123,6 +2132,7 @@ def render_consent_page(
           transform: none !important;
         }
         @media (hover: hover) {
+          .cl-consent-post-form .cl-consent-submit:hover,
           .st-key-cl_consent_submit_link [data-testid="stLinkButton"] > a:hover {
             border-color: #6e3ed2;
             background: #6e3ed2;
@@ -2287,13 +2297,35 @@ def render_consent_page(
             if oauth_disabled:
                 st.caption("Preview 설정이 없어 화면 확인만 가능합니다.")
         else:
-            st.link_button(
-                "동의하고 Instagram으로 계속하기",
-                oauth_url,
-                key="cl_consent_submit_link",
-                type="primary",
-                use_container_width=True,
-            )
+            if oauth_url == "/auth/instagram/start":
+                st.markdown(
+                    _compact_html(_consent_post_form(oauth_url)),
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.link_button(
+                    "동의하고 Instagram으로 계속하기",
+                    oauth_url,
+                    key="cl_consent_submit_link",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+
+def _consent_post_form(action_url: str) -> str:
+    safe_action_url = html.escape(action_url, quote=True)
+    hidden_fields = "\n".join(
+        f'<input type="hidden" name="{html.escape(key, quote=True)}" value="true" />'
+        for key in CONSENT_KEYS
+    )
+    return f"""
+        <form class="cl-consent-post-form" action="{safe_action_url}" method="post">
+          {hidden_fields}
+          <button class="cl-consent-submit" type="submit">
+            <span class="cl-consent-submit-text">동의하고 Instagram으로 계속하기</span>
+          </button>
+        </form>
+    """
 
 def _instagram_cta(safe_oauth_url: str, *, oauth_disabled: bool) -> str:
     icon = _instagram_icon(21)

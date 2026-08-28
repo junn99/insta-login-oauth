@@ -176,7 +176,7 @@ def test_initial_login_page_primary_cta_routes_to_full_page_consent(login_patche
     assert "https://instagram.example/oauth" not in html
 
 
-def test_configured_vercel_intro_cta_sets_browser_binding_first(
+def test_configured_vercel_intro_cta_routes_to_consent_without_get_start(
     login_patches,
     monkeypatch,
 ):
@@ -197,8 +197,8 @@ def test_configured_vercel_intro_cta_sets_browser_binding_first(
     app = _run_app()
     html = _all_markdown(app)
 
-    assert 'href="/auth/instagram/start"' in html
-    assert 'href="/Login?step=consent"' not in html
+    assert 'href="/Login?step=consent"' in html
+    assert 'href="/auth/instagram/start"' not in html
 
 
 def test_consent_step_renders_full_page_terms_gate(login_patches):
@@ -569,6 +569,41 @@ def test_consent_step_after_required_agreements_links_to_instagram_oauth(
     )
     assert "/Login?step=instagram-preview" not in html
     assert "Instagram 로그인 화면 미리보기" not in html
+
+
+def test_configured_vercel_consent_step_submits_oauth_start_with_post(
+    login_patches,
+    monkeypatch,
+):
+    import src.config as config_module
+
+    monkeypatch.setattr(config_module.Config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.config, "IS_VERCEL", True, raising=False)
+    monkeypatch.setattr(config_module.Config, "VERCEL_ENV", "production", raising=False)
+    monkeypatch.setattr(config_module.config, "VERCEL_ENV", "production", raising=False)
+    for key, value in {
+        "SESSION_COOKIE_SECRET": "s" * 32,
+        "OAUTH_REDIRECT_URI": "https://preview.example/auth/callback",
+        "SUPABASE_KEY": "sb_secret_server",
+    }.items():
+        monkeypatch.setattr(config_module.Config, key, value, raising=False)
+        monkeypatch.setattr(config_module.config, key, value, raising=False)
+
+    app = _run_app({"step": "consent"})
+    for checkbox in app.checkbox:
+        checkbox.check()
+    app = app.run()
+    html = _all_markdown(app)
+    link_buttons = _link_buttons(app)
+
+    assert login_patches["calls"]["oauth_url"] == 0
+    assert link_buttons == []
+    assert '<form class="cl-consent-post-form" action="/auth/instagram/start" method="post">' in html
+    assert 'name="age_confirmed" value="true"' in html
+    assert 'name="terms_accepted" value="true"' in html
+    assert 'name="privacy_accepted" value="true"' in html
+    assert 'name="instagram_permissions_accepted" value="true"' in html
+    assert "동의하고 Instagram으로 계속하기" in html
 
 
 def test_consent_step_back_action_returns_to_intro_and_clears_state(login_patches):
