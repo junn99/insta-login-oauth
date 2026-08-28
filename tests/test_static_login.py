@@ -251,7 +251,7 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
 
     detail = _css_block(html, ".cl-consent-detail-link")
     assert "min-height: 44px;" in detail
-    assert "font-size: 14px;" in detail
+    assert "font-size: 16px;" in detail
     assert "line-height: 1.52;" in detail
 
     submit = _css_block(html, ".cl-consent-submit")

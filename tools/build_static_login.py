@@ -302,7 +302,7 @@ def _static_consent_styles() -> str:
       min-height: 44px;
       padding: 0;
       color: #7d4fde;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
       line-height: 1.52;
       text-decoration: none;
