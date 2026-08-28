@@ -200,12 +200,15 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
     assert "font-weight: 400;" in back
     assert "letter-spacing: 0;" in back
     assert "line-height: 1.6;" in back
+    assert "border-radius: 8px;" in back
 
     back_icon = _css_block(html, ".cl-consent-back .cl-consent-back-icon")
-    assert "width: 20px;" in back_icon
-    assert "height: 20px;" in back_icon
-    assert "font-size: 30px;" in back_icon
-    assert "font-weight: 300;" in back_icon
+    assert "width: 16px;" in back_icon
+    assert "height: 16px;" in back_icon
+
+    back_icon_svg = _css_block(html, ".cl-consent-back .cl-consent-back-icon svg")
+    assert "width: 16px;" in back_icon_svg
+    assert "height: 16px;" in back_icon_svg
 
     back_text = _css_block(html, ".cl-consent-back .cl-consent-back-text")
     assert "font-size: 14px;" in back_text
@@ -223,20 +226,28 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
 
     label = _css_block(html, ".cl-consent-label")
     assert "min-height: 48px;" in label
-    assert "gap: 12px;" in label
+    assert "gap: 8px;" in label
     assert "font-size: 14px;" in label
     assert "font-weight: 400;" in label
     assert "letter-spacing: 0;" in label
     assert "line-height: 1.54;" in label
 
     checkbox = _css_block(html, ".cl-consent-label input")
-    assert "appearance: none;" in checkbox
-    assert "width: 16px;" in checkbox
-    assert "height: 16px;" in checkbox
-    assert "margin: 3px 0 0 -1px;" in checkbox
-    assert "border: 1px solid rgba(125, 79, 222, 0.42);" in checkbox
-    assert "border-radius: 5px;" in checkbox
-    assert "accent-color: #7d4fde;" in checkbox
+    assert "position: absolute;" in checkbox
+    assert "width: 1px;" in checkbox
+    assert "height: 1px;" in checkbox
+    assert "clip-path: inset(50%);" in checkbox
+
+    checkmark = _css_block(html, ".cl-consent-checkmark")
+    assert "width: 16px;" in checkmark
+    assert "height: 16px;" in checkmark
+    assert "margin-top: 2.5px;" in checkmark
+    assert "border: 1px solid rgba(125, 79, 222, 0.42);" in checkmark
+    assert "border-radius: 4px;" in checkmark
+
+    checked = _css_block(html, ".cl-consent-label input:checked + .cl-consent-checkmark")
+    assert "background: #7d4fde;" in checked
+    assert "border-color: #7d4fde;" in checked
 
     detail = _css_block(html, ".cl-consent-detail-link")
     assert "min-height: 44px;" in detail
@@ -250,6 +261,11 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
     assert "font-size: 15px;" in submit
     assert "font-weight: 680;" in submit
     assert "line-height: 1.6;" in submit
+
+    submit_text = _css_block(html, ".cl-consent-submit-text")
+    assert "font-size: 14px;" in submit_text
+    assert "font-weight: 400;" in submit_text
+    assert "line-height: 22.4px;" in submit_text
 
     assert "padding-top: max(28px, env(safe-area-inset-top));" in html
     assert "padding: max(18px, env(safe-area-inset-top)) 0 var(--cl-consent-panel-bottom);" in html

@@ -158,6 +158,7 @@ def _static_consent_styles() -> str:
       margin: 0 0 4px;
       padding: 0 4px;
       border: 0;
+      border-radius: 8px;
       background: transparent;
       color: #514b5a;
       cursor: pointer;
@@ -169,14 +170,18 @@ def _static_consent_styles() -> str:
 
     .cl-consent-back .cl-consent-back-icon {{
       display: inline-flex;
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
       flex: 0 0 auto;
       align-items: center;
       justify-content: center;
-      font-size: 30px;
-      font-weight: 300;
       line-height: 1;
+    }}
+
+    .cl-consent-back .cl-consent-back-icon svg {{
+      display: block;
+      width: 16px;
+      height: 16px;
     }}
 
     .cl-consent-back .cl-consent-back-text {{
@@ -243,7 +248,7 @@ def _static_consent_styles() -> str:
       display: flex;
       align-items: flex-start;
       min-height: 48px;
-      gap: 12px;
+      gap: 8px;
       color: #17131f;
       cursor: pointer;
       font-size: 14px;
@@ -254,23 +259,50 @@ def _static_consent_styles() -> str:
     }}
 
     .cl-consent-label input {{
-      appearance: none;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+      padding: 0;
+    }}
+
+    .cl-consent-checkmark {{
+      display: inline-flex;
       width: 16px;
       height: 16px;
       flex: 0 0 auto;
-      margin: 3px 0 0 -1px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2.5px;
       border: 1px solid rgba(125, 79, 222, 0.42);
-      border-radius: 5px;
+      border-radius: 4px;
       background: #ffffff;
-      accent-color: #7d4fde;
+      color: #ffffff;
     }}
 
-    .cl-consent-label input:checked {{
-      background:
-        linear-gradient(45deg, transparent 58%, #ffffff 58% 72%, transparent 72%),
-        linear-gradient(-45deg, transparent 50%, #ffffff 50% 64%, transparent 64%),
-        #7d4fde;
+    .cl-consent-checkmark svg {{
+      display: none;
+      width: 10px;
+      height: 8px;
+    }}
+
+    .cl-consent-label input:focus-visible + .cl-consent-checkmark {{
+      outline: 2px solid rgba(125, 79, 222, 0.32);
+      outline-offset: 2px;
+    }}
+
+    .cl-consent-label input:checked + .cl-consent-checkmark {{
+      background: #7d4fde;
       border-color: #7d4fde;
+    }}
+
+    .cl-consent-label input:checked + .cl-consent-checkmark svg {{
+      display: block;
     }}
 
     .cl-consent-detail-link {{
@@ -320,6 +352,12 @@ def _static_consent_styles() -> str:
       color: rgba(80, 62, 117, 0.62);
       cursor: not-allowed;
       transform: none;
+    }}
+
+    .cl-consent-submit-text {{
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 22.4px;
     }}
 
     .cl-static-error-page {{
@@ -951,6 +989,11 @@ def _consent_rows() -> str:
         """
         <label class="cl-consent-label">
           <input type="checkbox" id="cl-consent-all" />
+          <span class="cl-consent-checkmark" aria-hidden="true">
+            <svg viewBox="0 0 10 8" fill="none">
+              <polyline points="1 4 4 7 9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            </svg>
+          </span>
           <span>필수 항목에 모두 동의합니다.</span>
         </label>
         """
@@ -973,6 +1016,11 @@ def _consent_rows() -> str:
             <div class="{row_class}">
               <label class="cl-consent-label">
                 <input type="checkbox" name="{html.escape(item.key, quote=True)}" value="true" data-required="true" />
+                <span class="cl-consent-checkmark" aria-hidden="true">
+                  <svg viewBox="0 0 10 8" fill="none">
+                    <polyline points="1 4 4 7 9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  </svg>
+                </span>
                 <span>{safe_label}</span>
               </label>
               {detail}
@@ -993,7 +1041,11 @@ def _consent() -> str:
     <main class="cl-login-page cl-consent-page" data-view="consent" hidden>
       <div class="cl-consent-shell">
         <button class="cl-consent-back" type="button" data-action="show-intro" aria-label="이전으로">
-          <span class="cl-consent-back-icon" aria-hidden="true">←</span>
+          <span class="cl-consent-back-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.42-1.41L7.83 13H20v-2z" fill="currentColor"></path>
+            </svg>
+          </span>
           <span class="cl-consent-back-text">이전으로</span>
         </button>
 
@@ -1013,7 +1065,7 @@ def _consent() -> str:
 
         <form class="cl-consent-form" action="/auth/instagram/start" method="post" data-consent-form>
           {_consent_rows()}
-          <button class="cl-consent-submit" type="submit" disabled>동의하고 Instagram으로 계속하기</button>
+          <button class="cl-consent-submit" type="submit" disabled><span class="cl-consent-submit-text">동의하고 Instagram으로 계속하기</span></button>
         </form>
       </div>
       {ui._consent_detail_modals()}
