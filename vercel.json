@@ -1,3 +1,14 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {
+      "source": "/__canary/login-static",
+      "headers": [
+        {
+          "key": "x-celeblife-static-canary",
+          "value": "login-static"
+        }
+      ]
+    }
+  ]
 }
