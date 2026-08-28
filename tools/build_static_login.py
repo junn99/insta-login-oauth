@@ -124,7 +124,7 @@ def _static_consent_styles() -> str:
       width: min(100%, 560px);
       margin: 0 auto;
       padding:
-        max(12px, env(safe-area-inset-top))
+        max(28px, env(safe-area-inset-top))
         var(--cl-consent-gutter)
         max(28px, env(safe-area-inset-bottom));
     }}
