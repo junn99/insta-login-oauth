@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -10,6 +11,8 @@ from src.ui import celeblife_login as ui
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 GENERATOR_PATH = PROJECT_ROOT / "tools" / "build_static_login.py"
 STATIC_LOGIN_PATH = PROJECT_ROOT / "public" / "Login" / "index.html"
+STATIC_ASSET_DIR = PROJECT_ROOT / "public" / "Login" / "assets"
+SOURCE_ASSET_DIR = PROJECT_ROOT / "assets" / "login"
 
 
 class _InputParser(HTMLParser):
@@ -82,11 +85,29 @@ def test_static_login_uses_source_copy_assets_and_responsive_styles():
     ):
         assert copy in html
 
-    assert "celeblife_logo_purple.png" not in html
-    assert "celeblife_symbol_purple.png" not in html
-    assert "data:image/png;base64," in html
+    assert 'url("/Login/assets/celeblife_logo_purple.png")' in html
+    assert 'url("/Login/assets/celeblife_symbol_purple.png")' in html
+    assert "data:image/png;base64," not in html
+    assert len(html.encode("utf-8")) < 220_000
     assert "@media (max-width: 420px)" in html
     assert "@media (min-width: 961px)" in html
+
+
+def test_static_login_copies_exact_brand_asset_bytes():
+    builder = _load_generator()
+    assert tuple(builder.STATIC_BRAND_ASSETS) == (
+        "celeblife_logo_purple.png",
+        "celeblife_symbol_purple.png",
+    )
+
+    for filename in builder.STATIC_BRAND_ASSETS:
+        source = SOURCE_ASSET_DIR / filename
+        copied = STATIC_ASSET_DIR / filename
+        assert copied.exists()
+        assert copied.read_bytes() == source.read_bytes()
+        assert hashlib.sha256(copied.read_bytes()).hexdigest() == hashlib.sha256(
+            source.read_bytes()
+        ).hexdigest()
 
 
 def test_static_consent_has_three_visible_required_checkboxes_and_two_modals():

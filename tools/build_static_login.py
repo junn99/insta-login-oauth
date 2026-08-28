@@ -10,12 +10,18 @@ from __future__ import annotations
 import html
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "public" / "Login" / "index.html"
+STATIC_ASSET_DIR = ROOT / "public" / "Login" / "assets"
+STATIC_BRAND_ASSETS = (
+    "celeblife_logo_purple.png",
+    "celeblife_symbol_purple.png",
+)
 
 sys.path.insert(0, str(ROOT))
 
@@ -59,11 +65,9 @@ def _remove_css_block(css: str, selector_prefix: str) -> str:
 
 
 def _static_brand_styles() -> str:
-    logo_uri = ui._data_uri(ui.ASSET_DIR / "celeblife_logo_purple.png")
-    symbol_uri = ui._data_uri(ui.ASSET_DIR / "celeblife_symbol_purple.png")
     styles = ui._STYLE_TEMPLATE.substitute(
-        logo_uri=logo_uri,
-        symbol_uri=symbol_uri,
+        logo_uri="/Login/assets/celeblife_logo_purple.png",
+        symbol_uri="/Login/assets/celeblife_symbol_purple.png",
         logo_ratio=ui.LOGO_ASPECT_RATIO,
         font_stack=ui.FONT_STACK,
     )
@@ -1263,8 +1267,15 @@ def build() -> str:
     )
 
 
+def copy_static_assets() -> None:
+    STATIC_ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    for filename in STATIC_BRAND_ASSETS:
+        shutil.copyfile(ui.ASSET_DIR / filename, STATIC_ASSET_DIR / filename)
+
+
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    copy_static_assets()
     OUT.write_text(build() + "\n", encoding="utf-8")
 
 
