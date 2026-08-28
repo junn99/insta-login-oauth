@@ -4,17 +4,15 @@ import logging
 
 from starlette.datastructures import QueryParams
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
-from . import oauth as oauth_module
 from .config import config
 from .consent_binding import (
     CONSENT_BINDING_COOKIE_NAME,
-    build_binding_cookie,
     build_clear_binding_cookie,
-    create_binding_token,
     verify_binding_token,
 )
+from .oauth_start_service import handle_instagram_start
 from .oauth_callback_service import (
     OnboardingPersistenceError,
     complete_instagram_login,
@@ -102,17 +100,28 @@ def oauth_callback(request: Request) -> RedirectResponse:
         return _terminal_login_error(_login_error_code(exc))
 
 
-def instagram_start(_request: Request) -> RedirectResponse:
-    """Set the short-lived consent binding cookie before showing consent UI."""
-    if config.validate_runtime():
-        return _login_error("configuration_error")
-    try:
-        binding = create_binding_token(config.SESSION_COOKIE_SECRET)
-    except (TypeError, ValueError):
-        return _login_error("configuration_error")
+async def instagram_start(request: Request):
+    """Mint consent-bound OAuth state only after the static consent POST."""
+    result = handle_instagram_start(
+        method=request.method,
+        headers=request.headers,
+        body=await request.body(),
+        scheme=request.url.scheme,
+    )
+    if result.status_code == 405:
+        return PlainTextResponse(
+            result.body.decode("utf-8"),
+            status_code=result.status_code,
+            headers=dict(result.headers),
+        )
 
-    response = _redirect(f"{LOGIN_PATH}?step=consent")
-    response.headers.append("set-cookie", build_binding_cookie(binding.token))
+    response = RedirectResponse(
+        dict(result.headers)["location"],
+        status_code=result.status_code,
+    )
+    for key, value in result.headers:
+        if key != "location":
+            response.headers.append(key, value)
     return response
 
 

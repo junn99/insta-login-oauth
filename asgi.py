@@ -15,7 +15,7 @@ app = st.App(
     APP_SCRIPT,
     routes=[
         Route("/auth/callback", oauth_callback, methods=["GET"]),
-        Route("/auth/instagram/start", instagram_start, methods=["GET"]),
+        Route("/auth/instagram/start", instagram_start, methods=["GET", "POST"]),
         Route("/auth/logout", logout, methods=["GET"]),
         Route("/healthz", healthz, methods=["GET"]),
     ],

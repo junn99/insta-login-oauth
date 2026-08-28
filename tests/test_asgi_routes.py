@@ -58,20 +58,29 @@ def _request(
     query_string: str = "",
     *,
     cookie_header: str | None = None,
+    method: str = "GET",
+    headers: list[tuple[bytes, bytes]] | None = None,
+    form: bytes | None = None,
 ) -> Request:
-    headers = []
+    resolved_headers = list(headers or [])
     if cookie_header:
-        headers.append((b"cookie", cookie_header.encode("ascii")))
+        resolved_headers.append((b"cookie", cookie_header.encode("ascii")))
+    scope = {
+        "type": "http",
+        "method": method,
+        "path": path,
+        "query_string": query_string.encode("ascii"),
+        "headers": resolved_headers,
+        "server": ("testserver", 443),
+        "scheme": "https",
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": form or b"", "more_body": False}
+
     return Request(
-        {
-            "type": "http",
-            "method": "GET",
-            "path": path,
-            "query_string": query_string.encode("ascii"),
-            "headers": headers,
-            "server": ("testserver", 443),
-            "scheme": "https",
-        }
+        scope,
+        receive=receive,
     )
 
 
@@ -347,16 +356,86 @@ def test_oauth_callback_fails_closed_without_browser_binding(monkeypatch):
     assert build_clear_binding_cookie() in _set_cookies(response)
 
 
-def test_instagram_start_sets_binding_cookie_and_redirects(monkeypatch):
+def test_instagram_start_rejects_get_without_binding(monkeypatch):
     import src.asgi_routes as routes
 
     monkeypatch.setattr(routes.config, "SESSION_COOKIE_SECRET", SECRET, raising=False)
     monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
 
-    response = routes.instagram_start(_request("/auth/instagram/start"))
+    response = asyncio.run(routes.instagram_start(_request("/auth/instagram/start")))
+
+    assert response.status_code == 405
+    assert CONSENT_BINDING_COOKIE_NAME not in response.headers.get("set-cookie", "")
+
+
+def test_instagram_start_requires_static_consent_post(monkeypatch):
+    import src.asgi_routes as routes
+
+    monkeypatch.setattr(routes.config, "SESSION_COOKIE_SECRET", SECRET, raising=False)
+    monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
+
+    response = asyncio.run(
+        routes.instagram_start(
+            _request(
+                "/auth/instagram/start",
+                method="POST",
+                headers=[
+                    (b"host", b"testserver"),
+                    (b"origin", b"https://testserver"),
+                    (b"sec-fetch-site", b"same-origin"),
+                    (b"content-type", b"application/x-www-form-urlencoded"),
+                ],
+                form=b"age_confirmed=true&terms_accepted=true",
+            )
+        )
+    )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/Login?step=consent"
+    assert response.headers["location"] == "/Login?step=consent&auth_error=invalid_request"
+    assert CONSENT_BINDING_COOKIE_NAME not in response.headers.get("set-cookie", "")
+
+
+def test_instagram_start_sets_binding_cookie_and_redirects_to_oauth(monkeypatch):
+    import src.asgi_routes as routes
+    import src.oauth_start_service as oauth_start_service
+
+    monkeypatch.setattr(routes.config, "SESSION_COOKIE_SECRET", SECRET, raising=False)
+    monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
+    monkeypatch.setattr(
+        oauth_start_service.oauth_module,
+        "get_oauth_url",
+        lambda *, consent, binding_id: (
+            f"https://www.instagram.com/oauth/authorize?client_id=app-id"
+            f"&redirect_uri=https%3A%2F%2Fpreview.example%2Fauth%2Fcallback"
+            f"&state=signed-state-for-{binding_id}"
+        ),
+    )
+
+    response = asyncio.run(
+        routes.instagram_start(
+            _request(
+                "/auth/instagram/start",
+                method="POST",
+                headers=[
+                    (b"host", b"testserver"),
+                    (b"origin", b"https://testserver"),
+                    (b"sec-fetch-site", b"same-origin"),
+                    (b"content-type", b"application/x-www-form-urlencoded"),
+                ],
+                form=(
+                    b"age_confirmed=true&terms_accepted=true&privacy_accepted=true&"
+                    b"instagram_permissions_accepted=true"
+                ),
+            )
+        )
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith(
+        "https://www.instagram.com/oauth/authorize?"
+    )
+    assert "client_id=app-id" in response.headers["location"]
+    assert "redirect_uri=https%3A%2F%2Fpreview.example%2Fauth%2Fcallback" in response.headers["location"]
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"{CONSENT_BINDING_COOKIE_NAME}=")
     assert "Max-Age=600" in cookie
