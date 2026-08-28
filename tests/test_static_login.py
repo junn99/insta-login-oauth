@@ -335,12 +335,6 @@ def test_static_auth_error_view_matches_streamlit_early_error_contract():
 def test_static_auth_error_geometry_matches_frozen_streamlit_screen():
     html = _generated_html()
 
-    assert 'font-family: "Source Sans";' in html
-    assert (
-        'src: url("/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2")'
-        in html
-    )
-
     page = _css_block(html, ".cl-static-error-page")
     assert "min-height: 100vh;" in page
     assert "padding: 96px 16px 160px;" in page
@@ -422,6 +416,14 @@ def test_static_policy_typography_matches_frozen_streamlit_computed_styles():
     list_row = _css_block(html, ".cl-policy-modal__list-row")
     assert "margin: 0.2em 0 0.2em 1.15em;" in list_row
     assert "font-size: 14.5px;" in list_row
+    assert "overflow-wrap: anywhere;" in list_row
+
+    table_list = _css_block(html, ".cl-login-page .cl-policy-modal__table-list")
+    assert "gap: 10px;" in table_list
+    assert "margin: 10px 0 0;" in table_list
+    table_row = _css_block(html, ".cl-policy-modal__table-row")
+    assert "margin: 0.2em 0 0.2em 1.15em;" in table_row
+    assert "padding: 0 0 0 0.3em;" in table_row
 
     note = _css_block(html, ".cl-policy-modal__note")
     assert "margin: 0;" in note

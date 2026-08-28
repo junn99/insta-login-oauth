@@ -684,13 +684,6 @@ transition-duration: 0.01ms !important;
 }
 </style>
 <style>
-@font-face {
-font-family: "Source Sans";
-src: url("/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2") format("woff2");
-font-style: normal;
-font-weight: 200 900;
-font-display: swap;
-}
 .cl-login-page[hidden],
 .cl-static-error-page[hidden] {
 display: none !important;
@@ -917,12 +910,12 @@ min-height: 100dvh;
 padding: 96px 16px 160px;
 background: #ffffff;
 color: rgb(38, 39, 48);
-font-family: "Source Sans", sans-serif !important;
+font-family: "Pretendard Variable", Pretendard, Inter, "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif !important;
 }
 .cl-static-error-page,
 .cl-static-error-page * {
 box-sizing: border-box;
-font-family: "Source Sans", sans-serif !important;
+font-family: "Pretendard Variable", Pretendard, Inter, "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif !important;
 }
 .cl-static-chrome-button {
 position: absolute;
@@ -1202,7 +1195,7 @@ padding: 0 0 0 24px;
 color: #514b5a;
 font-size: 14.5px;
 line-height: 1.58;
-overflow-wrap: break-word;
+overflow-wrap: anywhere;
 }
 .cl-policy-modal__list-row::before {
 position: absolute;
@@ -1257,10 +1250,15 @@ padding: 9px 11px !important;
 .cl-login-page .cl-policy-modal__note {
 padding: 11px 12px !important;
 }
+.cl-login-page .cl-policy-modal__table-list {
+gap: 10px;
+margin: 10px 0 0;
+}
 .cl-policy-modal__table-row {
 display: grid;
 gap: 8px;
-padding: 12px;
+margin: 0.2em 0 0.2em 1.15em;
+padding: 0 0 0 0.3em;
 border: 1px solid rgba(43, 34, 63, 0.1);
 border-radius: 14px;
 background: #ffffff;

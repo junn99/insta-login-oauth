@@ -101,14 +101,6 @@ def _static_brand_styles() -> str:
 def _static_consent_styles() -> str:
     return f"""
     <style>
-    @font-face {{
-      font-family: "Source Sans";
-      src: url("/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2") format("woff2");
-      font-style: normal;
-      font-weight: 200 900;
-      font-display: swap;
-    }}
-
     .cl-login-page[hidden],
     .cl-static-error-page[hidden] {{
       display: none !important;
@@ -365,13 +357,13 @@ def _static_consent_styles() -> str:
       padding: 96px 16px 160px;
       background: #ffffff;
       color: rgb(38, 39, 48);
-      font-family: "Source Sans", sans-serif !important;
+      font-family: {ui.FONT_STACK} !important;
     }}
 
     .cl-static-error-page,
     .cl-static-error-page * {{
       box-sizing: border-box;
-      font-family: "Source Sans", sans-serif !important;
+      font-family: {ui.FONT_STACK} !important;
     }}
 
     .cl-static-chrome-button {{
@@ -684,7 +676,7 @@ def _static_consent_styles() -> str:
       color: #514b5a;
       font-size: 14.5px;
       line-height: 1.58;
-      overflow-wrap: break-word;
+      overflow-wrap: anywhere;
     }}
 
     .cl-policy-modal__list-row::before {{
@@ -748,10 +740,16 @@ def _static_consent_styles() -> str:
       padding: 11px 12px !important;
     }}
 
+    .cl-login-page .cl-policy-modal__table-list {{
+      gap: 10px;
+      margin: 10px 0 0;
+    }}
+
     .cl-policy-modal__table-row {{
       display: grid;
       gap: 8px;
-      padding: 12px;
+      margin: 0.2em 0 0.2em 1.15em;
+      padding: 0 0 0 0.3em;
       border: 1px solid rgba(43, 34, 63, 0.1);
       border-radius: 14px;
       background: #ffffff;
