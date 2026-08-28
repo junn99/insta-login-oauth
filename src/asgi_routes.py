@@ -12,7 +12,7 @@ from .consent_binding import (
     build_clear_binding_cookie,
     verify_binding_token,
 )
-from .oauth_start_service import handle_instagram_start
+from .oauth_start_service import MAX_FORM_BODY_BYTES, handle_instagram_start
 from .oauth_callback_service import (
     OnboardingPersistenceError,
     complete_instagram_login,
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 LOGIN_PATH = "/Login"
 DASHBOARD_PATH = "/Dashboard"
+_OVERSIZED_FORM_BODY = b"x" * (MAX_FORM_BODY_BYTES + 1)
 
 
 def _redirect(location: str) -> RedirectResponse:
@@ -102,12 +103,54 @@ def oauth_callback(request: Request) -> RedirectResponse:
 
 async def instagram_start(request: Request):
     """Mint consent-bound OAuth state only after the static consent POST."""
+    body = b""
+    if request.method.upper() == "POST":
+        body = await _bounded_form_body(request)
+        if body is None:
+            body = _OVERSIZED_FORM_BODY
+
     result = handle_instagram_start(
         method=request.method,
         headers=request.headers,
-        body=await request.body(),
+        body=body,
         scheme=request.url.scheme,
     )
+    return _instagram_start_response(result)
+
+
+async def _bounded_form_body(request: Request) -> bytes | None:
+    content_lengths = _content_length_values(request.headers)
+    if len(content_lengths) > 1:
+        return None
+
+    if content_lengths:
+        try:
+            content_length = int(content_lengths[0])
+        except ValueError:
+            return None
+        if content_length < 0 or content_length > MAX_FORM_BODY_BYTES:
+            return None
+
+    chunks: list[bytes] = []
+    received = 0
+    async for chunk in request.stream():
+        received += len(chunk)
+        if received > MAX_FORM_BODY_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _content_length_values(headers) -> list[str]:
+    getlist = getattr(headers, "getlist", None)
+    if getlist is not None:
+        return getlist("content-length")
+
+    value = headers.get("content-length")
+    return [] if value is None else [value]
+
+
+def _instagram_start_response(result):
     if result.status_code == 405:
         return PlainTextResponse(
             result.body.decode("utf-8"),

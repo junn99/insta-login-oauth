@@ -14,6 +14,7 @@ from src.consent_binding import (
     verify_binding_token,
 )
 from src.oauth_callback_service import OnboardingPersistenceError, OnboardingResult
+from src.oauth_start_service import MAX_FORM_BODY_BYTES
 from src.session import COOKIE_NAME, SESSION_MAX_AGE_SECONDS, verify_session_token
 
 SECRET = "s" * 32
@@ -90,6 +91,18 @@ def _binding_cookie_header() -> str:
         binding_id=BINDING_ID,
     )
     return f"{CONSENT_BINDING_COOKIE_NAME}={binding.token}"
+
+
+def _valid_instagram_start_headers(
+    *extra_headers: tuple[bytes, bytes],
+) -> list[tuple[bytes, bytes]]:
+    return [
+        (b"host", b"testserver"),
+        (b"origin", b"https://testserver"),
+        (b"sec-fetch-site", b"same-origin"),
+        (b"content-type", b"application/x-www-form-urlencoded"),
+        *extra_headers,
+    ]
 
 
 def _set_cookies(response) -> list[str]:
@@ -379,12 +392,7 @@ def test_instagram_start_requires_static_consent_post(monkeypatch):
             _request(
                 "/auth/instagram/start",
                 method="POST",
-                headers=[
-                    (b"host", b"testserver"),
-                    (b"origin", b"https://testserver"),
-                    (b"sec-fetch-site", b"same-origin"),
-                    (b"content-type", b"application/x-www-form-urlencoded"),
-                ],
+                headers=_valid_instagram_start_headers(),
                 form=b"age_confirmed=true&terms_accepted=true",
             )
         )
@@ -416,12 +424,7 @@ def test_instagram_start_sets_binding_cookie_and_redirects_to_oauth(monkeypatch)
             _request(
                 "/auth/instagram/start",
                 method="POST",
-                headers=[
-                    (b"host", b"testserver"),
-                    (b"origin", b"https://testserver"),
-                    (b"sec-fetch-site", b"same-origin"),
-                    (b"content-type", b"application/x-www-form-urlencoded"),
-                ],
+                headers=_valid_instagram_start_headers(),
                 form=(
                     b"age_confirmed=true&terms_accepted=true&privacy_accepted=true&"
                     b"instagram_permissions_accepted=true"
@@ -442,6 +445,99 @@ def test_instagram_start_sets_binding_cookie_and_redirects_to_oauth(monkeypatch)
     assert "SameSite=Lax" in cookie
     assert "Secure" in cookie
     assert "HttpOnly" in cookie
+
+
+def test_instagram_start_rejects_bad_content_length_without_body_read(monkeypatch):
+    import src.asgi_routes as routes
+
+    monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
+    receive_called = False
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/instagram/start",
+        "query_string": b"",
+        "headers": _valid_instagram_start_headers(
+            (b"content-length", str(MAX_FORM_BODY_BYTES + 1).encode("ascii")),
+        ),
+        "server": ("testserver", 443),
+        "scheme": "https",
+    }
+
+    async def receive():
+        nonlocal receive_called
+        receive_called = True
+        raise AssertionError("oversized Content-Length should fail before body read")
+
+    response = asyncio.run(routes.instagram_start(Request(scope, receive=receive)))
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/Login?step=consent&auth_error=invalid_request"
+    assert CONSENT_BINDING_COOKIE_NAME not in response.headers.get("set-cookie", "")
+    assert receive_called is False
+
+
+def test_instagram_start_rejects_malformed_content_length_without_body_read(monkeypatch):
+    import src.asgi_routes as routes
+
+    monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
+    receive_called = False
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/instagram/start",
+        "query_string": b"",
+        "headers": _valid_instagram_start_headers((b"content-length", b"not-a-number")),
+        "server": ("testserver", 443),
+        "scheme": "https",
+    }
+
+    async def receive():
+        nonlocal receive_called
+        receive_called = True
+        raise AssertionError("malformed Content-Length should fail before body read")
+
+    response = asyncio.run(routes.instagram_start(Request(scope, receive=receive)))
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/Login?step=consent&auth_error=invalid_request"
+    assert CONSENT_BINDING_COOKIE_NAME not in response.headers.get("set-cookie", "")
+    assert receive_called is False
+
+
+def test_instagram_start_bounded_stream_stops_after_limit_without_cookie(monkeypatch):
+    import src.asgi_routes as routes
+
+    monkeypatch.setattr(routes.config, "validate_runtime", lambda: [])
+    received_chunks = 0
+    total_chunks = MAX_FORM_BODY_BYTES + 20
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/auth/instagram/start",
+        "query_string": b"",
+        "headers": _valid_instagram_start_headers(),
+        "server": ("testserver", 443),
+        "scheme": "https",
+    }
+
+    async def receive():
+        nonlocal received_chunks
+        received_chunks += 1
+        if received_chunks > total_chunks:
+            raise AssertionError("bounded read consumed past the provided stream")
+        return {
+            "type": "http.request",
+            "body": b"a",
+            "more_body": received_chunks < total_chunks,
+        }
+
+    response = asyncio.run(routes.instagram_start(Request(scope, receive=receive)))
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/Login?step=consent&auth_error=invalid_request"
+    assert CONSENT_BINDING_COOKIE_NAME not in response.headers.get("set-cookie", "")
+    assert received_chunks == MAX_FORM_BODY_BYTES + 1
 
 
 def test_logout_clears_session_cookie():

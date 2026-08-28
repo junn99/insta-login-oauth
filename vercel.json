@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/auth/instagram/start",
+      "destination": "/api/instagram_start"
+    }
+  ],
   "headers": [
     {
       "source": "/__canary/login-static",

@@ -24,15 +24,15 @@ from src.ui import celeblife_login as ui  # noqa: E402
 
 
 ERROR_MESSAGES = {
-    "access_denied": "로그인을 완료하지 못했습니다. Instagram으로 다시 로그인해 주세요.",
-    "callback_failed": "로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+    "access_denied": "권한 요청이 취소되었습니다.",
+    "callback_failed": "로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     "configuration_error": "Preview 로그인 설정이 완료되지 않았습니다.",
     "consent_persistence_failed": "동의 내역을 저장하지 못했습니다. 다시 시도해 주세요.",
     "expired_state": "로그인 동의 시간이 만료되었습니다. 다시 진행해 주세요.",
-    "invalid_request": "요청이 올바르지 않습니다. 다시 진행해 주세요.",
-    "invalid_state": "세션이 유효하지 않습니다. 다시 진행해 주세요.",
-    "missing_code": "로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+    "invalid_state": "로그인 세션이 유효하지 않거나 만료되었습니다.",
+    "missing_code": "인증 코드가 없습니다. 다시 시도해 주세요.",
 }
+DEFAULT_ERROR_MESSAGE = "로그인을 완료하지 못했습니다."
 
 
 def _strip_css_comments(css: str) -> str:
@@ -91,6 +91,21 @@ def _static_brand_styles() -> str:
       margin: 0;
       padding: 0;
       background: #ffffff;
+      color: rgb(38, 39, 48);
+    }
+""",
+    )
+    styles = styles.replace(
+        """
+    .cl-login-page .cl-card-footer {
+      margin-top: auto;
+      padding-top: 16px;
+    }
+""",
+        """
+    .cl-login-page .cl-card-footer {
+      margin-top: auto;
+      padding-top: 14px;
     }
 """,
     )
@@ -100,27 +115,9 @@ def _static_brand_styles() -> str:
 def _static_consent_styles() -> str:
     return f"""
     <style>
-    .cl-login-page[hidden] {{
+    .cl-login-page[hidden],
+    .cl-static-error-page[hidden] {{
       display: none !important;
-    }}
-
-    .cl-login-page .cl-form-error {{
-      display: none;
-      margin: 16px 0 0;
-      padding: 12px 13px;
-      border: 1px solid rgba(190, 18, 60, 0.18);
-      border-radius: 12px;
-      background: #fff1f2;
-      color: #be123c;
-      font-size: 14px;
-      font-weight: 620;
-      letter-spacing: -0.02em;
-      line-height: 1.55;
-      word-break: keep-all;
-    }}
-
-    .cl-login-page .cl-form-error[data-visible="true"] {{
-      display: block;
     }}
 
     .cl-login-page.cl-consent-page {{
@@ -155,19 +152,31 @@ def _static_consent_styles() -> str:
     .cl-consent-back {{
       display: inline-flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      gap: 4px;
       min-height: 44px;
-      margin: 0 0 8px;
+      margin: 0 0 4px;
       padding: 0 4px;
       border: 0;
       background: transparent;
       color: #514b5a;
       cursor: pointer;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: 0;
+      line-height: 1.6;
     }}
 
     .cl-consent-back svg {{
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }}
+
+    .cl-consent-back span {{
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1.6;
     }}
 
     .cl-consent-page .cl-visual-panel {{
@@ -216,7 +225,7 @@ def _static_consent_styles() -> str:
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
       align-items: start;
-      min-height: 44px;
+      min-height: 48px;
       margin: 0;
     }}
 
@@ -227,23 +236,35 @@ def _static_consent_styles() -> str:
     .cl-consent-label {{
       display: flex;
       align-items: flex-start;
-      min-height: 44px;
-      gap: 9px;
+      min-height: 48px;
+      gap: 12px;
       color: #17131f;
       cursor: pointer;
-      font-size: 15px;
-      font-weight: 520;
-      letter-spacing: -0.022em;
-      line-height: 1.52;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0;
+      line-height: 1.54;
       word-break: keep-all;
     }}
 
     .cl-consent-label input {{
-      width: 18px;
-      height: 18px;
+      appearance: none;
+      width: 13px;
+      height: 13px;
       flex: 0 0 auto;
-      margin: 2px 0 0;
+      margin: 4px 0 0 -1px;
+      border: 1px solid #c9b6f4;
+      border-radius: 2px;
+      background: #ffffff;
       accent-color: #7d4fde;
+    }}
+
+    .cl-consent-label input:checked {{
+      background:
+        linear-gradient(45deg, transparent 58%, #ffffff 58% 72%, transparent 72%),
+        linear-gradient(-45deg, transparent 50%, #ffffff 50% 64%, transparent 64%),
+        #7d4fde;
+      border-color: #7d4fde;
     }}
 
     .cl-consent-detail-link {{
@@ -267,7 +288,8 @@ def _static_consent_styles() -> str:
       min-height: 60px;
       align-items: center;
       justify-content: center;
-      margin-top: 12px;
+      margin-top: 16px;
+      padding: 4px 12px;
       border: 1px solid #7d4fde;
       border-radius: 12px;
       background: #7d4fde;
@@ -277,6 +299,7 @@ def _static_consent_styles() -> str:
       font-size: 15px;
       font-weight: 680;
       letter-spacing: -0.02em;
+      line-height: 1.6;
       transition:
         transform 160ms ease,
         box-shadow 160ms ease,
@@ -291,6 +314,97 @@ def _static_consent_styles() -> str:
       color: rgba(80, 62, 117, 0.62);
       cursor: not-allowed;
       transform: none;
+    }}
+
+    .cl-static-error-page {{
+      position: relative;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 96px 16px 160px;
+      background: #ffffff;
+      color: rgb(38, 39, 48);
+      font-family: {ui.FONT_STACK} !important;
+    }}
+
+    .cl-static-error-page,
+    .cl-static-error-page * {{
+      box-sizing: border-box;
+      font-family: {ui.FONT_STACK} !important;
+    }}
+
+    .cl-static-chrome-button {{
+      position: absolute;
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+      color: rgb(38, 39, 48);
+      padding: 0;
+    }}
+
+    .cl-static-chrome-button svg {{
+      width: 20px;
+      height: 20px;
+    }}
+
+    .cl-static-chrome-button--left {{
+      top: 16px;
+      left: 18px;
+    }}
+
+    .cl-static-chrome-button--right {{
+      top: 15.5px;
+      right: 18px;
+    }}
+
+    .cl-static-error-title {{
+      margin: 0;
+      padding: 20px 0 16px;
+      color: rgb(38, 39, 48);
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1.2;
+    }}
+
+    .cl-static-error-alert {{
+      min-height: 56px;
+      margin: 0;
+      padding: 16px;
+      border-radius: 8px;
+      background: rgba(255, 43, 43, 0.1);
+      color: #bd4043;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.5;
+    }}
+
+    .cl-static-error-retry {{
+      display: flex;
+      width: 100%;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 16px;
+      padding: 4px 12px;
+      border: 1px solid rgba(38, 39, 48, 0.2);
+      border-radius: 8px;
+      background: #ffffff;
+      color: rgb(38, 39, 48);
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1.6;
+      text-align: center;
+      text-decoration: none;
+    }}
+
+    @media (min-width: 961px) {{
+      .cl-static-error-page {{
+        padding-right: 80px;
+        padding-left: 80px;
+      }}
     }}
 
     .cl-policy-modal,
@@ -657,6 +771,7 @@ def _static_consent_styles() -> str:
     @media (max-width: 420px) {{
       .cl-consent-shell {{
         --cl-consent-gutter: 18px;
+        padding-top: max(28px, env(safe-area-inset-top));
         padding-left: var(--cl-consent-gutter);
         padding-right: var(--cl-consent-gutter);
       }}
@@ -803,8 +918,6 @@ def _intro() -> str:
             </p>
           </div>
 
-          <p class="cl-form-error" data-login-error role="alert"></p>
-
           <div class="cl-actions">
             <a class="cl-instagram-button" href="/Login?step=consent" target="_self" data-action="show-consent">
               <span class="cl-instagram-icon">{ui._instagram_icon(21)}</span>
@@ -842,7 +955,8 @@ def _consent_rows() -> str:
         safe_label = html.escape(item.label)
         detail = (
             f'<a class="cl-consent-detail-link" href="#{ui._consent_modal_id(item.key)}" '
-            f'id="{ui._consent_trigger_id(item.key)}" role="button" aria-haspopup="dialog">'
+            f'id="{ui._consent_trigger_id(item.key)}" role="button" aria-haspopup="dialog" '
+            f'aria-controls="{ui._consent_modal_id(item.key)}">'
             "상세 보기</a>"
             if item.key in ui._CONSENT_DETAIL_KEYS
             else ""
@@ -876,6 +990,7 @@ def _consent() -> str:
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
             <path d="M15 6 9 12l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
+          <span>이전으로</span>
         </button>
 
         <section class="cl-form-panel" aria-labelledby="cl-consent-title">
@@ -892,8 +1007,6 @@ def _consent() -> str:
           </div>
         </section>
 
-        <p class="cl-form-error" data-consent-error role="alert"></p>
-
         <form class="cl-consent-form" action="/auth/instagram/start" method="post" data-consent-form>
           {_consent_rows()}
           <button class="cl-consent-submit" type="submit" disabled>동의하고 Instagram으로 계속하기</button>
@@ -904,20 +1017,59 @@ def _consent() -> str:
     """
 
 
+def _chrome_icon_collapsed_sidebar() -> str:
+    return """
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path d="m7 6 5 6-5 6" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="m12 6 5 6-5 6" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    """
+
+
+def _chrome_icon_more() -> str:
+    return """
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="5.5" r="1.7"/>
+      <circle cx="12" cy="12" r="1.7"/>
+      <circle cx="12" cy="18.5" r="1.7"/>
+    </svg>
+    """
+
+
+def _static_error() -> str:
+    return f"""
+    <main class="cl-static-error-page" data-view="error" hidden>
+      <button class="cl-static-chrome-button cl-static-chrome-button--left" type="button" aria-label="사이드바 펼치기">
+        {_chrome_icon_collapsed_sidebar()}
+      </button>
+      <button class="cl-static-chrome-button cl-static-chrome-button--right" type="button" aria-label="더보기">
+        {_chrome_icon_more()}
+      </button>
+      <h1 class="cl-static-error-title">🔐 인스타그램 로그인</h1>
+      <p class="cl-static-error-alert" data-error-message role="alert"></p>
+      <a class="cl-static-error-retry" href="/Login?step=consent">다시 동의하고 연결하기</a>
+    </main>
+    """
+
+
 def _script() -> str:
     error_map = json.dumps(ERROR_MESSAGES, ensure_ascii=False)
+    default_error = json.dumps(DEFAULT_ERROR_MESSAGE, ensure_ascii=False)
     return f"""
     <script>
     (() => {{
       const ERROR_MESSAGES = {error_map};
+      const DEFAULT_ERROR_MESSAGE = {default_error};
       const intro = document.querySelector('[data-view="intro"]');
       const consent = document.querySelector('[data-view="consent"]');
+      const errorView = document.querySelector('[data-view="error"]');
+      const errorMessage = document.querySelector('[data-error-message]');
       const form = document.querySelector('[data-consent-form]');
       const all = document.querySelector('#cl-consent-all');
       const required = Array.from(document.querySelectorAll('input[data-required="true"]'));
       const submit = document.querySelector('.cl-consent-submit');
-      const loginError = document.querySelector('[data-login-error]');
-      const consentError = document.querySelector('[data-consent-error]');
       let currentStep = null;
 
       function syncSubmit() {{
@@ -926,29 +1078,38 @@ def _script() -> str:
         all.checked = ok;
       }}
 
-      function updateError(target) {{
-        const code = new URLSearchParams(location.search).get('auth_error');
-        const message = ERROR_MESSAGES[code] || '';
-        [loginError, consentError].forEach((node) => {{
-          node.textContent = '';
-          node.dataset.visible = 'false';
-        }});
-        if (message && target) {{
-          target.textContent = message;
-          target.dataset.visible = 'true';
-        }}
+      function authErrorCode() {{
+        const params = new URLSearchParams(location.search);
+        return params.has('auth_error') ? params.get('auth_error') : null;
       }}
 
-      function show(step, replace = false) {{
+      function showError(code) {{
+        intro.hidden = true;
+        consent.hidden = true;
+        errorView.hidden = false;
+        errorMessage.textContent = ERROR_MESSAGES[code] || DEFAULT_ERROR_MESSAGE;
+      }}
+
+      function updateErrorView() {{
+        const code = authErrorCode();
+        if (code !== null) {{
+          showError(code);
+          return true;
+        }}
+        errorView.hidden = true;
+        errorMessage.textContent = '';
+        return false;
+      }}
+
+      function show(step, replace = false, clearQuery = false) {{
+        if (updateErrorView()) return;
         if (currentStep === step && !replace) return;
         currentStep = step;
         const isConsent = step === 'consent';
         intro.hidden = isConsent;
         consent.hidden = !isConsent;
-        if (isConsent) {{
-          window.__clConsentShownAt = performance.now();
-        }}
-        const params = new URLSearchParams(location.search);
+        errorView.hidden = true;
+        const params = clearQuery ? new URLSearchParams() : new URLSearchParams(location.search);
         if (isConsent) {{
           params.set('step', 'consent');
         }} else {{
@@ -957,20 +1118,14 @@ def _script() -> str:
         const query = params.toString();
         const url = query ? `/Login?${{query}}` : '/Login';
         history[replace ? 'replaceState' : 'pushState']({{ step }}, '', url);
-        updateError(isConsent ? consentError : loginError);
       }}
 
       document.addEventListener('click', (event) => {{
         const trigger = event.target.closest('[data-action]');
         if (!trigger) return;
         event.preventDefault();
-        show(trigger.dataset.action === 'show-consent' ? 'consent' : 'intro');
-      }});
-
-      document.addEventListener('pointerdown', (event) => {{
-        const trigger = event.target.closest('[data-action="show-consent"]');
-        if (!trigger) return;
-        show('consent');
+        const action = trigger.dataset.action;
+        show(action === 'show-consent' ? 'consent' : 'intro', false, action === 'show-intro');
       }});
 
       all.addEventListener('change', () => {{
@@ -986,13 +1141,21 @@ def _script() -> str:
       }});
 
       window.addEventListener('popstate', () => {{
+        if (updateErrorView()) return;
         const step = new URLSearchParams(location.search).get('step');
         const isConsent = step === 'consent';
+        currentStep = isConsent ? 'consent' : 'intro';
         intro.hidden = isConsent;
         consent.hidden = !isConsent;
-        updateError(isConsent ? consentError : loginError);
+        errorView.hidden = true;
       }});
 
+      const errorCode = authErrorCode();
+      if (errorCode !== null) {{
+        showError(errorCode);
+        syncSubmit();
+        return;
+      }}
       const step = new URLSearchParams(location.search).get('step');
       show(step === 'consent' ? 'consent' : 'intro', true);
       syncSubmit();
@@ -1016,6 +1179,7 @@ def build() -> str:
           <body data-celeblife-static-login="true">
             {_intro()}
             {_consent()}
+            {_static_error()}
             {_script()}
           </body>
         </html>
