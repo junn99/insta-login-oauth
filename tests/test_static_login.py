@@ -272,7 +272,8 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
     assert "font-size: 25px;\nline-height: 1.42;" in html
     assert "font-size: 14.5px;\nline-height: 1.86;" in html
     assert "font-size: 13.5px;" in html
-    assert ".cl-login-page .cl-card-footer {\nmargin-top: auto;\npadding-top: 14px;" in html
+    assert ".cl-login-page .cl-card-footer {\nmargin-top: auto;\npadding-top: 16px;" in html
+    assert ".cl-login-page .cl-security-note {\nline-height: 1.6;" in html
 
 
 def test_static_navigation_waits_for_click_and_keeps_history_state_in_sync():

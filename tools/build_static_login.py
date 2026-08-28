@@ -95,20 +95,6 @@ def _static_brand_styles() -> str:
     }
 """,
     )
-    styles = styles.replace(
-        """
-    .cl-login-page .cl-card-footer {
-      margin-top: auto;
-      padding-top: 16px;
-    }
-""",
-        """
-    .cl-login-page .cl-card-footer {
-      margin-top: auto;
-      padding-top: 14px;
-    }
-""",
-    )
     return styles
 
 
@@ -165,6 +151,10 @@ def _static_consent_styles() -> str:
       font-size: 16px;
       font-weight: 400;
       letter-spacing: 0;
+      line-height: 1.6;
+    }}
+
+    .cl-login-page .cl-security-note {{
       line-height: 1.6;
     }}
 
