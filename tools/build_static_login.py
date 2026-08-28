@@ -101,6 +101,14 @@ def _static_brand_styles() -> str:
 def _static_consent_styles() -> str:
     return f"""
     <style>
+    @font-face {{
+      font-family: "Source Sans";
+      src: url("/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 200 900;
+      font-display: swap;
+    }}
+
     .cl-login-page[hidden],
     .cl-static-error-page[hidden] {{
       display: none !important;
@@ -357,13 +365,13 @@ def _static_consent_styles() -> str:
       padding: 96px 16px 160px;
       background: #ffffff;
       color: rgb(38, 39, 48);
-      font-family: {ui.FONT_STACK} !important;
+      font-family: "Source Sans", sans-serif !important;
     }}
 
     .cl-static-error-page,
     .cl-static-error-page * {{
       box-sizing: border-box;
-      font-family: {ui.FONT_STACK} !important;
+      font-family: "Source Sans", sans-serif !important;
     }}
 
     .cl-static-chrome-button {{
@@ -455,6 +463,10 @@ def _static_consent_styles() -> str:
       align-items: center;
       justify-content: center;
       padding: 24px 18px;
+      color: rgb(38, 39, 48);
+      line-height: 1.6;
+      overflow-wrap: break-word;
+      text-align: left;
     }}
 
     .cl-policy-modal:target {{
@@ -499,18 +511,20 @@ def _static_consent_styles() -> str:
     .cl-policy-modal__eyebrow {{
       margin: 0 0 4px;
       color: #7d4fde;
-      font-size: 11px;
+      font-size: 16px;
       font-weight: 800;
       letter-spacing: 0.1em;
       line-height: 1.35;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__title {{
       margin: 0;
       color: #171321;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 800;
       line-height: 1.42;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__close-icon {{
@@ -556,19 +570,21 @@ def _static_consent_styles() -> str:
     }}
 
     .cl-policy-modal__metadata {{
-      margin: 6px 0 0;
+      margin: 0;
       color: #7d7286;
-      font-size: 12.5px;
+      font-size: 14.5px;
       font-weight: 620;
       line-height: 1.5;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__document-subtitle {{
-      margin: 8px 0 0;
+      margin: 0;
       color: #5b5369;
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 560;
       line-height: 1.6;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__metadata-row {{
@@ -576,8 +592,8 @@ def _static_consent_styles() -> str:
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      margin-top: 8px;
-      padding: 9px 11px;
+      margin: 0;
+      padding: 9px 11px !important;
       border: 1px solid rgba(125, 79, 222, 0.1);
       border-radius: 12px;
       background: #fbfaff;
@@ -609,6 +625,7 @@ def _static_consent_styles() -> str:
       color: #453d52;
       font-size: 14.5px;
       line-height: 1.72;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__section {{
@@ -621,9 +638,10 @@ def _static_consent_styles() -> str:
       gap: 8px;
       margin: 0 0 10px;
       color: #201a2d;
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 780;
       line-height: 1.45;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__section-number {{
@@ -638,14 +656,16 @@ def _static_consent_styles() -> str:
       font-size: 12px;
       font-weight: 850;
       line-height: 1;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__subheading {{
-      margin: 14px 0 6px;
+      margin: 0 0 6px;
       color: #2a2335;
-      font-size: 14px;
+      font-size: 14.5px;
       font-weight: 740;
       line-height: 1.45;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__list,
@@ -659,12 +679,12 @@ def _static_consent_styles() -> str:
 
     .cl-policy-modal__list-row {{
       position: relative;
-      margin: 0;
+      margin: 0.2em 0 0.2em 1.15em;
       padding: 0 0 0 24px;
       color: #514b5a;
-      font-size: 14px;
+      font-size: 14.5px;
       line-height: 1.58;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }}
 
     .cl-policy-modal__list-row::before {{
@@ -694,27 +714,38 @@ def _static_consent_styles() -> str:
     .cl-policy-modal__summary-label {{
       margin: 0;
       color: #7d4fde;
-      font-size: 12.5px;
+      font-size: 14.5px;
       font-weight: 820;
       line-height: 1.4;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__summary-description {{
-      margin: 5px 0 0;
+      margin: 0;
       color: #443d50;
-      font-size: 14px;
+      font-size: 14.5px;
       line-height: 1.58;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__note {{
-      margin: 12px 0 0;
-      padding: 11px 12px;
+      margin: 0;
+      padding: 11px 12px !important;
       border-left: 3px solid #9b7cec;
       border-radius: 12px;
       background: #fbfaff;
       color: #5b5369;
-      font-size: 13.5px;
+      font-size: 14.5px;
       line-height: 1.64;
+      word-break: break-word;
+    }}
+
+    .cl-login-page .cl-policy-modal__metadata-row {{
+      padding: 9px 11px !important;
+    }}
+
+    .cl-login-page .cl-policy-modal__note {{
+      padding: 11px 12px !important;
     }}
 
     .cl-policy-modal__table-row {{
@@ -762,9 +793,10 @@ def _static_consent_styles() -> str:
     }}
 
     .cl-policy-modal__paragraph {{
-      margin: 8px 0 0;
+      margin: 0;
       font-size: 14.5px;
       line-height: 1.72;
+      word-break: break-word;
     }}
 
     .cl-policy-modal__paragraph:last-child {{
@@ -859,7 +891,7 @@ def _static_consent_styles() -> str:
       }}
 
       .cl-policy-modal__title {{
-        font-size: 19px;
+        font-size: 16px;
         line-height: 1.42;
       }}
 

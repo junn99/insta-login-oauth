@@ -335,6 +335,12 @@ def test_static_auth_error_view_matches_streamlit_early_error_contract():
 def test_static_auth_error_geometry_matches_frozen_streamlit_screen():
     html = _generated_html()
 
+    assert 'font-family: "Source Sans";' in html
+    assert (
+        'src: url("/static/media/SourceSansVF-Upright.ttf.BsWL4Kly.woff2")'
+        in html
+    )
+
     page = _css_block(html, ".cl-static-error-page")
     assert "min-height: 100vh;" in page
     assert "padding: 96px 16px 160px;" in page
@@ -381,3 +387,58 @@ def test_static_auth_error_geometry_matches_frozen_streamlit_screen():
     assert "@media (min-width: 961px)" in html
     assert "padding-right: 80px;" in html
     assert "padding-left: 80px;" in html
+
+
+def test_static_policy_typography_matches_frozen_streamlit_computed_styles():
+    html = _generated_html()
+
+    modal = _css_block(html, ".cl-policy-modal")
+    assert "color: rgb(38, 39, 48);" in modal
+    assert "line-height: 1.6;" in modal
+    assert "overflow-wrap: break-word;" in modal
+
+    eyebrow = _css_block(html, ".cl-policy-modal__eyebrow")
+    assert "font-size: 16px;" in eyebrow
+    assert "line-height: 1.35;" in eyebrow
+    assert "word-break: break-word;" in eyebrow
+
+    title = _css_block(html, ".cl-policy-modal__title")
+    assert "font-size: 16px;" in title
+    assert "line-height: 1.42;" in title
+
+    metadata = _css_block(html, ".cl-policy-modal__metadata")
+    assert "margin: 0;" in metadata
+    assert "font-size: 14.5px;" in metadata
+
+    metadata_row = _css_block(html, ".cl-policy-modal__metadata-row")
+    assert "margin: 0;" in metadata_row
+    assert "padding: 9px 11px !important;" in metadata_row
+    specific_metadata_row = _css_block(
+        html,
+        ".cl-login-page .cl-policy-modal__metadata-row",
+    )
+    assert "padding: 9px 11px !important;" in specific_metadata_row
+
+    list_row = _css_block(html, ".cl-policy-modal__list-row")
+    assert "margin: 0.2em 0 0.2em 1.15em;" in list_row
+    assert "font-size: 14.5px;" in list_row
+
+    note = _css_block(html, ".cl-policy-modal__note")
+    assert "margin: 0;" in note
+    assert "padding: 11px 12px !important;" in note
+    assert "font-size: 14.5px;" in note
+    specific_note = _css_block(html, ".cl-login-page .cl-policy-modal__note")
+    assert "padding: 11px 12px !important;" in specific_note
+
+    paragraph = _css_block(html, ".cl-policy-modal__paragraph")
+    assert "margin: 0;" in paragraph
+    assert "word-break: break-word;" in paragraph
+
+    body = _css_block(html, ".cl-policy-modal__body")
+    assert "word-break: keep-all;" in body
+    intro_paragraph = _css_block(html, ".cl-policy-modal__intro p")
+    assert "word-break: break-word;" in intro_paragraph
+    section_number = _css_block(html, ".cl-policy-modal__section-number")
+    assert "word-break: break-word;" in section_number
+    summary_label = _css_block(html, ".cl-policy-modal__summary-label")
+    assert "word-break: break-word;" in summary_label
