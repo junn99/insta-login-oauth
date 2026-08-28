@@ -174,7 +174,7 @@ def test_static_history_deep_link_error_and_submit_contracts():
     ]
     assert len(back_buttons) == 1
     assert back_buttons[0].get("data-action") == "show-intro"
-    assert '<span>이전으로</span>' in html
+    assert '<span class="cl-consent-back-text">이전으로</span>' in html
     assert "gap: 4px;" in html
 
     submit_buttons = [
@@ -201,11 +201,13 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
     assert "letter-spacing: 0;" in back
     assert "line-height: 1.6;" in back
 
-    back_icon = _css_block(html, ".cl-consent-back svg")
+    back_icon = _css_block(html, ".cl-consent-back .cl-consent-back-icon")
     assert "width: 20px;" in back_icon
     assert "height: 20px;" in back_icon
+    assert "font-size: 30px;" in back_icon
+    assert "font-weight: 300;" in back_icon
 
-    back_text = _css_block(html, ".cl-consent-back span")
+    back_text = _css_block(html, ".cl-consent-back .cl-consent-back-text")
     assert "font-size: 14px;" in back_text
     assert "font-weight: 400;" in back_text
     assert "line-height: 1.6;" in back_text
@@ -229,10 +231,11 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
 
     checkbox = _css_block(html, ".cl-consent-label input")
     assert "appearance: none;" in checkbox
-    assert "width: 13px;" in checkbox
-    assert "height: 13px;" in checkbox
-    assert "margin: 4px 0 0 -1px;" in checkbox
-    assert "border: 1px solid #c9b6f4;" in checkbox
+    assert "width: 16px;" in checkbox
+    assert "height: 16px;" in checkbox
+    assert "margin: 3px 0 0 -1px;" in checkbox
+    assert "border: 1px solid rgba(125, 79, 222, 0.42);" in checkbox
+    assert "border-radius: 5px;" in checkbox
     assert "accent-color: #7d4fde;" in checkbox
 
     detail = _css_block(html, ".cl-consent-detail-link")
@@ -242,7 +245,7 @@ def test_static_mobile_consent_css_matches_frozen_measurement_contract():
 
     submit = _css_block(html, ".cl-consent-submit")
     assert "min-height: 60px;" in submit
-    assert "margin-top: 16px;" in submit
+    assert "margin-top: 12px;" in submit
     assert "padding: 4px 12px;" in submit
     assert "font-size: 15px;" in submit
     assert "font-weight: 680;" in submit

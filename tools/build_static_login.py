@@ -167,13 +167,19 @@ def _static_consent_styles() -> str:
       line-height: 1.6;
     }}
 
-    .cl-consent-back svg {{
+    .cl-consent-back .cl-consent-back-icon {{
+      display: inline-flex;
       width: 20px;
       height: 20px;
       flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: 300;
+      line-height: 1;
     }}
 
-    .cl-consent-back span {{
+    .cl-consent-back .cl-consent-back-text {{
       font-size: 14px;
       font-weight: 400;
       line-height: 1.6;
@@ -249,12 +255,12 @@ def _static_consent_styles() -> str:
 
     .cl-consent-label input {{
       appearance: none;
-      width: 13px;
-      height: 13px;
+      width: 16px;
+      height: 16px;
       flex: 0 0 auto;
-      margin: 4px 0 0 -1px;
-      border: 1px solid #c9b6f4;
-      border-radius: 2px;
+      margin: 3px 0 0 -1px;
+      border: 1px solid rgba(125, 79, 222, 0.42);
+      border-radius: 5px;
       background: #ffffff;
       accent-color: #7d4fde;
     }}
@@ -288,7 +294,7 @@ def _static_consent_styles() -> str:
       min-height: 60px;
       align-items: center;
       justify-content: center;
-      margin-top: 16px;
+      margin-top: 12px;
       padding: 4px 12px;
       border: 1px solid #7d4fde;
       border-radius: 12px;
@@ -987,10 +993,8 @@ def _consent() -> str:
     <main class="cl-login-page cl-consent-page" data-view="consent" hidden>
       <div class="cl-consent-shell">
         <button class="cl-consent-back" type="button" data-action="show-intro" aria-label="이전으로">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-            <path d="M15 6 9 12l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>이전으로</span>
+          <span class="cl-consent-back-icon" aria-hidden="true">←</span>
+          <span class="cl-consent-back-text">이전으로</span>
         </button>
 
         <section class="cl-form-panel" aria-labelledby="cl-consent-title">
