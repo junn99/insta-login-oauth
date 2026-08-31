@@ -16,14 +16,25 @@ def test_vercel_preview_login_avoids_streamlit_asgi_function_bundle():
     assert "$schema" in vercel
 
 
-def test_vercel_preview_config_has_no_cron_or_production_redirects():
+def test_vercel_preview_config_keeps_runtime_surface_minimal():
     vercel = json.loads((PROJECT_ROOT / "vercel.json").read_text(encoding="utf-8"))
 
     assert "framework" not in vercel
     assert "functions" not in vercel
     assert "crons" not in vercel
-    assert "redirects" not in vercel
     assert "builds" not in vercel
+
+
+def test_vercel_redirects_only_root_to_static_login_page():
+    vercel = json.loads((PROJECT_ROOT / "vercel.json").read_text(encoding="utf-8"))
+
+    assert vercel.get("redirects") == [
+        {
+            "source": "/",
+            "destination": "/Login",
+            "permanent": False,
+        }
+    ]
 
 
 def test_vercel_rewrites_instagram_start_to_node_api():
